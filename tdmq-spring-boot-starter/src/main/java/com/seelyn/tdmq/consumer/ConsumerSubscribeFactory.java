@@ -6,31 +6,19 @@ import com.seelyn.tdmq.exception.ConsumerInitException;
 import com.seelyn.tdmq.exception.MessageRedeliverException;
 import com.seelyn.tdmq.utils.ExecutorUtils;
 import com.seelyn.tdmq.utils.SchemaUtils;
-import org.apache.pulsar.client.api.BatchReceivePolicy;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.DeadLetterPolicy;
-import org.apache.pulsar.client.api.Messages;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.SmartInitializingSingleton;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.EmbeddedValueResolverAware;
-import org.springframework.context.annotation.DependsOn;
-import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringValueResolver;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -38,24 +26,24 @@ import java.util.stream.Collectors;
  *
  * @author linfeng
  */
-@Component
-@DependsOn(value = {"pulsarClient", "consumerMethodPostProcessor"})
-public class ConsumerSubscribe implements EmbeddedValueResolverAware, SmartInitializingSingleton, DisposableBean {
+public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, SmartInitializingSingleton, DisposableBean {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerSubscribe.class);
-    private StringValueResolver stringValueResolver;
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerSubscribeFactory.class);
+
     private final PulsarClient pulsarClient;
     private final ConsumerMethodCollection consumerMethodCollection;
-    private List<Consumer> singleConsumers;
-    private List<Consumer> batchConsumers;
-    private ExecutorService listenerExecutor;
+    private final Executor consumerBatchExecutor;
 
-    @Autowired
-    public ConsumerSubscribe(PulsarClient pulsarClient,
-                             ConsumerMethodCollection consumerMethodCollection) {
+    private StringValueResolver stringValueResolver;
+    private List<Consumer<?>> singleConsumers;
+    private List<Consumer<?>> batchConsumers;
+
+    public ConsumerSubscribeFactory(PulsarClient pulsarClient,
+                                    ConsumerMethodCollection consumerMethodCollection,
+                                    Executor consumerBatchExecutor) {
         this.pulsarClient = pulsarClient;
         this.consumerMethodCollection = consumerMethodCollection;
-        this.listenerExecutor = ExecutorUtils.newMaxThreadPool(10);
+        this.consumerBatchExecutor = consumerBatchExecutor;
     }
 
     @Override
@@ -63,17 +51,17 @@ public class ConsumerSubscribe implements EmbeddedValueResolverAware, SmartIniti
         this.stringValueResolver = stringValueResolver;
     }
 
-
     @Override
     public void afterSingletonsInstantiated() {
 
+        //  初始化单消息订阅
         if (!consumerMethodCollection.getSingleMessageConsumer().isEmpty()) {
             singleConsumers = consumerMethodCollection.getSingleMessageConsumer().entrySet()
                     .stream()
                     .map(entry -> subscribeSingle(entry.getKey(), entry.getValue()))
                     .collect(Collectors.toList());
         }
-
+        //  初始化多消息订阅
         if (!consumerMethodCollection.getBatchMessageConsumer().isEmpty()) {
             batchConsumers = consumerMethodCollection.getBatchMessageConsumer().entrySet()
                     .stream()
@@ -85,12 +73,12 @@ public class ConsumerSubscribe implements EmbeddedValueResolverAware, SmartIniti
 
     @Override
     public void destroy() throws Exception {
-        for (Consumer consumer : singleConsumers) {
+        for (Consumer<?> consumer : singleConsumers) {
             if (consumer.isConnected()) {
                 consumer.close();
             }
         }
-        for (Consumer consumer : batchConsumers) {
+        for (Consumer<?> consumer : batchConsumers) {
             if (consumer.isConnected()) {
                 consumer.close();
             }
@@ -124,12 +112,12 @@ public class ConsumerSubscribe implements EmbeddedValueResolverAware, SmartIniti
         try {
             Consumer<?> consumer = clientBuilder.subscribe();
 
-            listenerExecutor.execute(() -> {
+            consumerBatchExecutor.execute(() -> {
 
                 //noinspection InfiniteLoopStatement
                 while (true) {
                     //等待接收消息
-                    Messages messages = null;
+                    Messages<?> messages = null;
                     try {
                         messages = consumer.batchReceive();
                     } catch (PulsarClientException e) {
@@ -141,7 +129,7 @@ public class ConsumerSubscribe implements EmbeddedValueResolverAware, SmartIniti
                     }
                     try {
                         //noinspection unchecked
-                        consumerMessage.getBean().received(consumer, messages);
+                        consumerMessage.getListener().received(consumer, messages);
                         //消息ACK
                         consumer.acknowledge(messages);
                     } catch (MessageRedeliverException e) {
@@ -211,14 +199,14 @@ public class ConsumerSubscribe implements EmbeddedValueResolverAware, SmartIniti
                 .topicsAndTags(getTopicMap(consumerMessage.getAnnotation()))
                 .subscriptionType(consumerMessage.getAnnotation().subscriptionType())
                 .subscriptionMode(consumerMessage.getAnnotation().subscriptionMode())
-                .messageListener((consumer, msg) -> {
+                .messageListener((consumer, message) -> {
                     try {
                         //noinspection unchecked
-                        consumerMessage.getBean().received(consumer, msg);
+                        consumerMessage.getListener().received(consumer, message);
                         //消息ACK
-                        consumer.acknowledge(msg);
+                        consumer.acknowledge(message);
                     } catch (MessageRedeliverException e) {
-                        consumer.negativeAcknowledge(msg);
+                        consumer.negativeAcknowledge(message);
                     } catch (Exception e) {
                         LOGGER.error(e.getLocalizedMessage(), e);
                     }

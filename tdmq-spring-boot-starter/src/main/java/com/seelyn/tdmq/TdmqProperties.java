@@ -15,7 +15,7 @@ public class TdmqProperties {
     private String authenticationToken;
     private Integer ioThreads = 10;
     private Integer listenerThreads = 10;
-    private boolean enableTcpNoDelay = false;
+    private Boolean enableTcpNoDelay = false;
     private Integer keepAliveIntervalSec = 20;
     private Integer connectionTimeoutSec = 10;
     private Integer operationTimeoutSec = 15;
@@ -62,11 +62,11 @@ public class TdmqProperties {
         this.listenerThreads = listenerThreads;
     }
 
-    public boolean isEnableTcpNoDelay() {
+    public Boolean isEnableTcpNoDelay() {
         return enableTcpNoDelay;
     }
 
-    public void setEnableTcpNoDelay(boolean enableTcpNoDelay) {
+    public void setEnableTcpNoDelay(Boolean enableTcpNoDelay) {
         this.enableTcpNoDelay = enableTcpNoDelay;
     }
 

@@ -11,10 +11,10 @@ import com.seelyn.tdmq.annotation.TdmqHandler;
 public class ConsumerBatchMessage {
 
     private final TdmqHandler annotation;
-    private final TdmqBatchListener bean;
+    private final TdmqBatchListener<?> bean;
     private final Class<?> paramType;
 
-    ConsumerBatchMessage(TdmqHandler annotation, TdmqBatchListener bean, Class<?> paramType) {
+    ConsumerBatchMessage(TdmqHandler annotation, TdmqBatchListener<?> bean, Class<?> paramType) {
         this.annotation = annotation;
         this.bean = bean;
         this.paramType = paramType;
@@ -24,7 +24,8 @@ public class ConsumerBatchMessage {
         return annotation;
     }
 
-    public TdmqBatchListener getBean() {
+    @SuppressWarnings("rawtypes")
+    public TdmqBatchListener getListener() {
         return bean;
     }
 

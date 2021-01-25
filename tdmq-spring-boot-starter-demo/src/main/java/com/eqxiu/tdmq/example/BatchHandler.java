@@ -1,4 +1,4 @@
-package com.seelyn.tdmq.example;
+package com.eqxiu.tdmq.example;
 
 import com.seelyn.tdmq.TdmqBatchListener;
 import com.seelyn.tdmq.annotation.TdmqHandler;
@@ -26,7 +26,6 @@ public class BatchHandler implements TdmqBatchListener<String> {
         for (Message<String> message : messages) {
             System.out.println(message.getValue());
         }
-
     }
 
 }

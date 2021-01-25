@@ -1,4 +1,4 @@
-package com.seelyn.tdmq;
+package com.eqxiu.tdmq;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

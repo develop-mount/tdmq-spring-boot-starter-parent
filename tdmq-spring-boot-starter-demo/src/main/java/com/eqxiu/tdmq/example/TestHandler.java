@@ -1,11 +1,9 @@
-package com.seelyn.tdmq.example;
+package com.eqxiu.tdmq.example;
 
 import com.seelyn.tdmq.TdmqListener;
-import com.seelyn.tdmq.annotation.TdmqHandler;
 import com.seelyn.tdmq.exception.MessageRedeliverException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.springframework.stereotype.Component;
 
 /**
  * @author linfeng

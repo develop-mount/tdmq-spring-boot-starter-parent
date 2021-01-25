@@ -1,7 +1,7 @@
 package com.seelyn.tdmq.consumer;
 
-import com.seelyn.tdmq.annotation.TdmqHandler;
 import com.seelyn.tdmq.TdmqListener;
+import com.seelyn.tdmq.annotation.TdmqHandler;
 
 /**
  * 订阅者执行方法
@@ -11,12 +11,12 @@ import com.seelyn.tdmq.TdmqListener;
 public class ConsumerSingleMessage {
 
     private final TdmqHandler annotation;
-    private final TdmqListener bean;
+    private final TdmqListener<?> listener;
     private final Class<?> paramType;
 
-    ConsumerSingleMessage(TdmqHandler annotation, TdmqListener bean, Class<?> paramType) {
+    ConsumerSingleMessage(TdmqHandler annotation, TdmqListener<?> listener, Class<?> paramType) {
         this.annotation = annotation;
-        this.bean = bean;
+        this.listener = listener;
         this.paramType = paramType;
     }
 
@@ -24,8 +24,9 @@ public class ConsumerSingleMessage {
         return annotation;
     }
 
-    public TdmqListener getBean() {
-        return bean;
+    @SuppressWarnings("rawtypes")
+    public TdmqListener getListener() {
+        return listener;
     }
 
     public Class<?> getParamType() {

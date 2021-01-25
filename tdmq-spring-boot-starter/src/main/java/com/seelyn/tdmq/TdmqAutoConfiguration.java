@@ -1,6 +1,9 @@
 package com.seelyn.tdmq;
 
-import com.seelyn.tdmq.utils.ExecutorUtils;
+import com.seelyn.tdmq.consumer.ConsumerMethodCollection;
+import com.seelyn.tdmq.consumer.ConsumerMethodPostProcessor;
+import com.seelyn.tdmq.consumer.ConsumerSubscribeFactory;
+import com.seelyn.tdmq.producer.TdmqTemplate;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -8,21 +11,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 /**
  * @author linfeng
  */
 @Configuration
-@ComponentScan
-@EnableConfigurationProperties({TdmqProperties.class})
+@EnableConfigurationProperties({TdmqProperties.class, TdmqBatchProperties.class})
 public class TdmqAutoConfiguration {
 
     private final TdmqProperties tdmqProperties;
@@ -50,4 +50,35 @@ public class TdmqAutoConfiguration {
                 .build();
     }
 
+    @Bean("consumerMethodPostProcessor")
+    public ConsumerMethodPostProcessor consumerMethodPostProcessor() {
+        return new ConsumerMethodPostProcessor();
+    }
+
+    @Bean("consumerBatchExecutor")
+    public Executor consumerBatchExecutor(TdmqBatchProperties batchProperties) {
+        ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+        taskExecutor.setCorePoolSize(batchProperties.getCorePoolSize());
+        taskExecutor.setMaxPoolSize(batchProperties.getMaxPoolSize());
+        taskExecutor.setQueueCapacity(batchProperties.getQueueCapacity());
+        taskExecutor.setKeepAliveSeconds(batchProperties.getKeepAliveSeconds());
+        taskExecutor.setThreadNamePrefix(batchProperties.getThreadNamePrefix());
+        taskExecutor.setWaitForTasksToCompleteOnShutdown(batchProperties.isWaitForJobsToCompleteOnShutdown());
+        taskExecutor.setAwaitTerminationSeconds(batchProperties.getAwaitTerminationSeconds());
+        return taskExecutor;
+    }
+
+    @Bean
+    @DependsOn({"pulsarClient", "consumerMethodPostProcessor", "consumerBatchExecutor"})
+    public ConsumerSubscribeFactory consumerSubscribeFactory(PulsarClient pulsarClient,
+                                                             ConsumerMethodCollection consumerMethodCollection,
+                                                             Executor consumerBatchExecutor) {
+
+        return new ConsumerSubscribeFactory(pulsarClient, consumerMethodCollection, consumerBatchExecutor);
+    }
+
+    @Bean
+    public <T> TdmqTemplate<T> tTdmqTemplate(PulsarClient pulsarClient) {
+        return new TdmqTemplate<>(pulsarClient);
+    }
 }

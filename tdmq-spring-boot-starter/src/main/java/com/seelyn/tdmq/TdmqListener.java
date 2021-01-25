@@ -8,15 +8,17 @@ import java.io.Serializable;
 
 /**
  * TDMQ 接收接口
- * @author linfeng
+ *
  * @param <T>
+ * @author linfeng
  */
 public interface TdmqListener<T> extends Serializable {
 
     /**
      * 接收消息
+     *
      * @param consumer 订阅实例
-     * @param message 消息
+     * @param message  消息
      * @throws MessageRedeliverException 重试异常
      */
     void received(Consumer<T> consumer, Message<T> message) throws MessageRedeliverException;
