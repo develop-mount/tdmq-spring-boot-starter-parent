@@ -77,3 +77,8 @@ mvn help:effective-settings
 - profiles 中包含 qcloud-repo ，则表明 qcloud-repo 私服已经加入到
 - profiles 中；activeProfiles 中包含 qcloud-repo，则表明 qcloud-repo 私服已经激活成功。可以通过mvn help:effective-settings | grep 'qcloud-repo'命令检查。
 
+# 添加依赖
+```
+
+
+```

@@ -27,8 +27,6 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <pulsar.version>2.6.1</pulsar.version>
         <tdmq.version>2.6.0</tdmq.version>
-        <gpg.executable>gpg</gpg.executable>
-        <gpg.passphrase>lyl20160225</gpg.passphrase>
         <arguments/>
     </properties>
 
