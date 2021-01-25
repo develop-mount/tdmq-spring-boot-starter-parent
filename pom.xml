@@ -103,9 +103,6 @@
     <profiles>
         <profile>
             <id>eqxiu-release</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
             <distributionManagement>
                 <repository>
                     <id>Project Releases</id>
@@ -163,6 +160,9 @@
         </profile>
         <profile>
             <id>sonatype-oss-release</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <properties>
                 <gpg.executable>gpg</gpg.executable>
                 <gpg.passphrase>lyl20160225</gpg.passphrase>
