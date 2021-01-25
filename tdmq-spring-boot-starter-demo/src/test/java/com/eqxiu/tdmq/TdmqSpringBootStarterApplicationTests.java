@@ -19,7 +19,7 @@ public class TdmqSpringBootStarterApplicationTests {
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .producerName("producer")
-                .topic("persistent://pulsar-m93253wq27/eqx-scs/scs")
+                .topic("persistent://pulsar-m93253wq27/eqx-scs/test")
                 .create();
 
         for (int i = 0; i < 10; i++) {

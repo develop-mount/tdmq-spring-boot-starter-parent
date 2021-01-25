@@ -12,10 +12,10 @@ import org.springframework.stereotype.Component;
 /**
  * @author linfeng
  */
-@Component
-@TdmqHandler(topics = {
-        @TdmqTopic(topic = "${queue}")
-})
+//@Component
+//@TdmqHandler(topics = {
+//        @TdmqTopic(topic = "${queue}")
+//})
 public class BatchHandler implements TdmqBatchListener<String> {
 
 
