@@ -12,6 +12,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.EmbeddedValueResolverAware;
+import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import org.springframework.util.StringValueResolver;
 
 import java.util.HashMap;
@@ -91,9 +93,11 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
                 .newConsumer(SchemaUtils.getSchema(consumerMessage.getParamType()))
                 .consumerName("consumer-" + name)
                 .subscriptionName("subscription-" + name)
-                .topicsAndTags(getTopicMap(consumerMessage.getAnnotation()))
                 .subscriptionType(consumerMessage.getAnnotation().subscriptionType())
                 .subscriptionMode(consumerMessage.getAnnotation().subscriptionMode());
+
+        // 设置topic和tags
+        topicAndTags(clientBuilder, consumerMessage.getAnnotation());
 
         if (consumerMessage.getAnnotation().maxNumMessages() > 0) {
 
@@ -167,21 +171,23 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
     }
 
     /**
-     * 主题Map
+     * 设置topic和tags
      *
-     * @param handler tdmq 处理注解
-     * @return 主题Map
+     * @param clientBuilder 订阅构造器
+     * @param handler       TDMQ处理注解
      */
-    private Map<String, String> getTopicMap(TdmqHandler handler) {
+    private void topicAndTags(ConsumerBuilder<?> clientBuilder, TdmqHandler handler) {
 
-        Map<String, String> topicMap = new HashMap<>(handler.topics().length);
+        Assert.notEmpty(handler.topics(), "@TdmqTopic 必须设置");
         for (TdmqTopic tdmqTopic : handler.topics()) {
-            topicMap.put(stringValueResolver.resolveStringValue(tdmqTopic.topic()),
-                    stringValueResolver.resolveStringValue(tdmqTopic.tags()));
+            if (StringUtils.hasLength(tdmqTopic.topic()) && StringUtils.hasLength(tdmqTopic.tags())) {
+                clientBuilder.topicByTag(stringValueResolver.resolveStringValue(tdmqTopic.topic()),
+                        stringValueResolver.resolveStringValue(tdmqTopic.tags()));
+            } else if (StringUtils.hasLength(tdmqTopic.topic())) {
+                clientBuilder.topic(stringValueResolver.resolveStringValue(tdmqTopic.topic()));
+            }
         }
-        return topicMap;
     }
-
 
     /**
      * 订阅
@@ -196,7 +202,6 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
                 .newConsumer(SchemaUtils.getSchema(consumerMessage.getParamType()))
                 .consumerName("consumer-" + name)
                 .subscriptionName("subscription-" + name)
-                .topicsAndTags(getTopicMap(consumerMessage.getAnnotation()))
                 .subscriptionType(consumerMessage.getAnnotation().subscriptionType())
                 .subscriptionMode(consumerMessage.getAnnotation().subscriptionMode())
                 .messageListener((consumer, message) -> {
@@ -212,6 +217,8 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
                     }
                 });
 
+        // 设置topic和tags
+        topicAndTags(clientBuilder, consumerMessage.getAnnotation());
         // 设置
         setDeadLetterPolicy(clientBuilder, consumerMessage.getAnnotation());
 

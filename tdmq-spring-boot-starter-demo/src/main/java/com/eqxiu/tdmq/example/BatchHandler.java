@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @TdmqHandler(topics = {
-        @TdmqTopic(topic = "persistent://pulsar-m93253wq27/eqx-scs/scs", tags = "cdc || mns")
+        @TdmqTopic(topic = "${queue}")
 })
 public class BatchHandler implements TdmqBatchListener<String> {
 
