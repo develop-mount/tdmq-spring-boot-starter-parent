@@ -1,5 +1,7 @@
 package com.seelyn.tdmq.consumer;
 
+import com.seelyn.tdmq.ListBaseBytesListener;
+import com.seelyn.tdmq.ObjectBaseBytesListener;
 import com.seelyn.tdmq.TdmqBatchListener;
 import com.seelyn.tdmq.TdmqListener;
 import com.seelyn.tdmq.annotation.TdmqHandler;
@@ -35,10 +37,20 @@ public class ConsumerMethodPostProcessor implements ConsumerMethodCollection, Be
         if (tdmqHandler == null) {
             return bean;
         }
+
         if (bean instanceof TdmqListener || bean instanceof TdmqBatchListener) {
 
-            ResolvableType resolvableType = ResolvableType.forClass(targetClass);
-            Class<?> resolveInterface = resolvableType.getInterfaces()[0].getGeneric(0).resolve();
+            Class<?> resolveInterface;
+            ResolvableType resolvableType;
+            // 判断是否是继承抽象类
+            if (bean instanceof ObjectBaseBytesListener || bean instanceof ListBaseBytesListener) {
+
+                resolvableType = ResolvableType.forClass(targetClass.getSuperclass());
+                resolveInterface = resolvableType.getInterfaces()[0].getGeneric(0).resolve();
+            } else {
+                resolvableType = ResolvableType.forClass(targetClass);
+                resolveInterface = resolvableType.getInterfaces()[0].getGeneric(0).resolve();
+            }
 
             if (bean instanceof TdmqListener) {
 
