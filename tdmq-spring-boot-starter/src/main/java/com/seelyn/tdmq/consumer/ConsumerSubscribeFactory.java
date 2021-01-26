@@ -12,12 +12,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.EmbeddedValueResolverAware;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.util.StringValueResolver;
 
 import java.util.List;
-import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -32,15 +33,15 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
 
     private final PulsarClient pulsarClient;
     private final ConsumerMethodCollection consumerMethodCollection;
-    private final Executor consumerBatchExecutor;
+    private final AsyncTaskExecutor consumerBatchExecutor;
 
     private StringValueResolver stringValueResolver;
     private List<Consumer<?>> singleConsumers;
-    private List<Consumer<?>> batchConsumers;
+    private List<ConsumerFuture> batchConsumers;
 
     public ConsumerSubscribeFactory(PulsarClient pulsarClient,
                                     ConsumerMethodCollection consumerMethodCollection,
-                                    Executor consumerBatchExecutor) {
+                                    AsyncTaskExecutor consumerBatchExecutor) {
         this.pulsarClient = pulsarClient;
         this.consumerMethodCollection = consumerMethodCollection;
         this.consumerBatchExecutor = consumerBatchExecutor;
@@ -56,6 +57,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
 
         //  初始化单消息订阅
         if (!consumerMethodCollection.getSingleMessageConsumer().isEmpty()) {
+
             singleConsumers = consumerMethodCollection.getSingleMessageConsumer().entrySet()
                     .stream()
                     .map(entry -> subscribeSingle(entry.getKey(), entry.getValue()))
@@ -63,6 +65,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
         }
         //  初始化多消息订阅
         if (!consumerMethodCollection.getBatchMessageConsumer().isEmpty()) {
+
             batchConsumers = consumerMethodCollection.getBatchMessageConsumer().entrySet()
                     .stream()
                     .map(entry -> subscribeBatch(entry.getKey(), entry.getValue()))
@@ -78,14 +81,15 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
                 consumer.close();
             }
         }
-        for (Consumer<?> consumer : batchConsumers) {
-            if (consumer.isConnected()) {
-                consumer.close();
+        for (ConsumerFuture consumerFuture : batchConsumers) {
+            consumerFuture.future.cancel(true);
+            if (consumerFuture.consumer.isConnected()) {
+                consumerFuture.consumer.close();
             }
         }
     }
 
-    private Consumer<?> subscribeBatch(String name, ConsumerBatchMessage consumerMessage) {
+    private ConsumerFuture subscribeBatch(String name, ConsumerBatchMessage consumerMessage) {
 
         final ConsumerBuilder<?> clientBuilder = pulsarClient
                 .newConsumer(SchemaUtils.getSchema(consumerMessage.getParamType()))
@@ -114,10 +118,9 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
         try {
             Consumer<?> consumer = clientBuilder.subscribe();
 
-            consumerBatchExecutor.execute(() -> {
+            Future<?> future = consumerBatchExecutor.submit(() -> {
 
-                //noinspection InfiniteLoopStatement
-                while (true) {
+                while (!Thread.currentThread().isInterrupted()) {
                     //等待接收消息
                     Messages<?> messages = null;
                     try {
@@ -142,7 +145,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
                 }
             });
 
-            return consumer;
+            return new ConsumerFuture(consumer, future);
         } catch (PulsarClientException e) {
             throw new ConsumerInitException(e.getLocalizedMessage(), e);
         }
@@ -227,6 +230,24 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
             throw new ConsumerInitException(e.getLocalizedMessage(), e);
         }
 
+    }
+
+    static class ConsumerFuture {
+        Consumer<?> consumer;
+        Future<?> future;
+
+        public ConsumerFuture(Consumer<?> consumer, Future<?> future) {
+            this.consumer = consumer;
+            this.future = future;
+        }
+
+        public Consumer<?> getConsumer() {
+            return consumer;
+        }
+
+        public Future<?> getFuture() {
+            return future;
+        }
     }
 
 }

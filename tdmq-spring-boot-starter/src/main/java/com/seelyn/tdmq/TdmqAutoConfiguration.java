@@ -16,6 +16,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
@@ -59,7 +60,7 @@ public class TdmqAutoConfiguration {
     }
 
     @Bean("consumerBatchExecutor")
-    public Executor consumerBatchExecutor(TdmqBatchProperties batchProperties) {
+    public AsyncTaskExecutor consumerBatchExecutor(TdmqBatchProperties batchProperties) {
         ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
         taskExecutor.setCorePoolSize(batchProperties.getCorePoolSize());
         taskExecutor.setMaxPoolSize(batchProperties.getMaxPoolSize());
@@ -75,7 +76,7 @@ public class TdmqAutoConfiguration {
     @DependsOn({"pulsarClient", "consumerMethodPostProcessor", "consumerBatchExecutor"})
     public ConsumerSubscribeFactory consumerSubscribeFactory(PulsarClient pulsarClient,
                                                              ConsumerMethodCollection consumerMethodCollection,
-                                                             Executor consumerBatchExecutor) {
+                                                             AsyncTaskExecutor consumerBatchExecutor) {
 
         return new ConsumerSubscribeFactory(pulsarClient, consumerMethodCollection, consumerBatchExecutor);
     }
