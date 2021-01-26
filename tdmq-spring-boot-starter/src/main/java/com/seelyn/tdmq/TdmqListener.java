@@ -9,7 +9,7 @@ import java.io.Serializable;
 /**
  * TDMQ 接收接口
  *
- * @param <T>
+ * @param <T> 泛型， 任意java类型
  * @author linfeng
  */
 public interface TdmqListener<T> extends Serializable {

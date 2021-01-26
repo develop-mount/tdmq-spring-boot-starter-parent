@@ -16,9 +16,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.util.StringValueResolver;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -194,6 +192,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      *
      * @param name            类名称
      * @param consumerMessage 订阅消息对象
+     * @return 订阅 Consumer
      */
     private Consumer<?> subscribeSingle(String name, ConsumerSingleMessage consumerMessage) {
 
