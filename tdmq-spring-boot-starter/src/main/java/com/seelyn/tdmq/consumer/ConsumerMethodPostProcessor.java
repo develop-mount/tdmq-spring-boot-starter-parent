@@ -1,7 +1,5 @@
 package com.seelyn.tdmq.consumer;
 
-import com.seelyn.tdmq.ListBaseBytesListener;
-import com.seelyn.tdmq.ObjectBaseBytesListener;
 import com.seelyn.tdmq.TdmqBatchListener;
 import com.seelyn.tdmq.TdmqListener;
 import com.seelyn.tdmq.annotation.TdmqHandler;
@@ -40,18 +38,7 @@ public class ConsumerMethodPostProcessor implements ConsumerMethodCollection, Be
 
         if (bean instanceof TdmqListener || bean instanceof TdmqBatchListener) {
 
-            Class<?> resolveInterface;
-            ResolvableType resolvableType;
-            // 判断是否是继承抽象类
-            if (bean instanceof ObjectBaseBytesListener || bean instanceof ListBaseBytesListener) {
-
-                resolvableType = ResolvableType.forClass(targetClass.getSuperclass());
-                resolveInterface = resolvableType.getInterfaces()[0].getGeneric(0).resolve();
-            } else {
-                resolvableType = ResolvableType.forClass(targetClass);
-                resolveInterface = resolvableType.getInterfaces()[0].getGeneric(0).resolve();
-            }
-
+            Class<?> resolveInterface = getResolvableClass(targetClass);
             if (bean instanceof TdmqListener) {
 
                 singleMessageConcurrentMap.putIfAbsent(targetClass.getName(), new ConsumerSingleMessage(tdmqHandler, (TdmqListener<?>) bean, resolveInterface));
@@ -68,6 +55,15 @@ public class ConsumerMethodPostProcessor implements ConsumerMethodCollection, Be
         }
 
         return bean;
+    }
+
+    public Class<?> getResolvableClass(Class<?> targetClass) {
+        ResolvableType resolvableType = ResolvableType.forClass(targetClass);
+        if (resolvableType.getInterfaces().length <= 0) {
+            return getResolvableClass(targetClass.getSuperclass());
+        } else {
+            return resolvableType.getInterfaces()[0].getGeneric(0).resolve();
+        }
     }
 
     @Override
