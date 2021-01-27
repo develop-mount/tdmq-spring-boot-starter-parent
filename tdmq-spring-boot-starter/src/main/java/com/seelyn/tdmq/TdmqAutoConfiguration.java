@@ -62,20 +62,13 @@ public class TdmqAutoConfiguration {
         return new ConsumerMethodPostProcessor();
     }
 
-    @Bean("executorService")
-    public ExecutorService executorService(TdmqProperties tdmqProperties) {
-
-        return ExecutorUtils.newFixedThreadPool(tdmqProperties.getBatchThreads());
-    }
-
     @Bean
-    @DependsOn({"pulsarClient", "consumerMethodPostProcessor", "executorService"})
+    @DependsOn({"pulsarClient", "consumerMethodPostProcessor"})
     public ConsumerSubscribeFactory consumerSubscribeFactory(PulsarClient pulsarClient,
                                                              ConsumerMethodCollection consumerMethodCollection,
-                                                             ExecutorService executorService,
                                                              TdmqProperties tdmqProperties) {
 
-        return new ConsumerSubscribeFactory(pulsarClient, consumerMethodCollection, executorService, tdmqProperties);
+        return new ConsumerSubscribeFactory(pulsarClient, consumerMethodCollection, tdmqProperties);
     }
 
     @Bean

@@ -6,8 +6,15 @@ import com.seelyn.tdmq.annotation.TdmqHandler;
 import com.seelyn.tdmq.annotation.TdmqTopic;
 import com.seelyn.tdmq.exception.ConsumerInitException;
 import com.seelyn.tdmq.exception.MessageRedeliverException;
+import com.seelyn.tdmq.utils.ExecutorUtils;
 import com.seelyn.tdmq.utils.SchemaUtils;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.Messages;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -17,9 +24,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.util.StringValueResolver;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
@@ -34,19 +39,16 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
 
     private final PulsarClient pulsarClient;
     private final ConsumerMethodCollection consumerMethodCollection;
-    private final ExecutorService executorServiceBatch;
-    private final int batchThreads;
 
+    private int batchThreads;
     private StringValueResolver stringValueResolver;
 
     public ConsumerSubscribeFactory(PulsarClient pulsarClient,
                                     ConsumerMethodCollection consumerMethodCollection,
-                                    ExecutorService executorServiceBatch,
                                     TdmqProperties tdmqProperties) {
         this.pulsarClient = pulsarClient;
         this.consumerMethodCollection = consumerMethodCollection;
-        this.executorServiceBatch = executorServiceBatch;
-        this.batchThreads = tdmqProperties.getBatchThreads();
+        this.batchThreads = tdmqProperties.getMaxBatchThreads();
     }
 
     @Override
@@ -84,8 +86,15 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
             return;
         }
 
-        Assert.isTrue(batchThreads > 0, "tdmq.batch-threads=x 值不能小于等于0");
         Assert.isTrue(batchThreads <= batchConsumers.size(), "tdmq.batch-threads=x 值不能大于订阅数量");
+
+        if (batchThreads < 0) {
+            batchThreads = batchConsumers.size();
+        }
+
+        ExecutorService executorServiceBatch = ExecutorUtils.newFixedThreadPool(batchThreads);
+
+        Assert.isTrue(batchThreads > 0, "tdmq.batch-threads=x 值不能小于等于0");
 
         int splitCount = batchConsumers.size() / batchThreads;
         //按每splitCount个一组分割
