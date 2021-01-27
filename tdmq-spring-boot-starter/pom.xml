@@ -21,11 +21,6 @@
             <artifactId>spring-boot-configuration-processor</artifactId>
             <optional>true</optional>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.apache.pulsar</groupId>-->
-<!--            <artifactId>pulsar-client</artifactId>-->
-<!--            <version>${pulsar.version}</version>-->
-<!--        </dependency>-->
         <dependency>
             <groupId>com.tencent.tdmq</groupId>
             <artifactId>tdmq-client</artifactId>

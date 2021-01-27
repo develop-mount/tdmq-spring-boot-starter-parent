@@ -18,8 +18,8 @@ import java.util.concurrent.ConcurrentMap;
  */
 public class ConsumerMethodPostProcessor implements ConsumerMethodCollection, BeanPostProcessor, Ordered {
 
-    private final ConcurrentMap<String, ConsumerSingleMessage> singleMessageConcurrentMap = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, ConsumerBatchMessage> batchMessageConcurrentMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ConsumerSingleBean> singleMessageConcurrentMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ConsumerBatchBean> batchMessageConcurrentMap = new ConcurrentHashMap<>();
 
     @Override
     public int getOrder() {
@@ -41,11 +41,11 @@ public class ConsumerMethodPostProcessor implements ConsumerMethodCollection, Be
             Class<?> resolveInterface = getResolvableClass(targetClass);
             if (bean instanceof TdmqListener) {
 
-                singleMessageConcurrentMap.putIfAbsent(targetClass.getName(), new ConsumerSingleMessage(tdmqHandler, (TdmqListener<?>) bean, resolveInterface));
+                singleMessageConcurrentMap.putIfAbsent(targetClass.getName(), new ConsumerSingleBean(tdmqHandler, (TdmqListener<?>) bean, resolveInterface));
             }
             if (bean instanceof TdmqBatchListener) {
 
-                batchMessageConcurrentMap.putIfAbsent(targetClass.getName(), new ConsumerBatchMessage(tdmqHandler, (TdmqBatchListener<?>) bean, resolveInterface));
+                batchMessageConcurrentMap.putIfAbsent(targetClass.getName(), new ConsumerBatchBean(tdmqHandler, (TdmqBatchListener<?>) bean, resolveInterface));
             }
         } else {
 
@@ -67,12 +67,12 @@ public class ConsumerMethodPostProcessor implements ConsumerMethodCollection, Be
     }
 
     @Override
-    public ConcurrentMap<String, ConsumerSingleMessage> getSingleMessageConsumer() {
+    public ConcurrentMap<String, ConsumerSingleBean> getSingleMessageConsumer() {
         return singleMessageConcurrentMap;
     }
 
     @Override
-    public ConcurrentMap<String, ConsumerBatchMessage> getBatchMessageConsumer() {
+    public ConcurrentMap<String, ConsumerBatchBean> getBatchMessageConsumer() {
         return batchMessageConcurrentMap;
     }
 }

@@ -1,25 +1,26 @@
 package com.seelyn.tdmq.consumer;
 
+import com.google.common.collect.Lists;
+import com.seelyn.tdmq.TdmqProperties;
 import com.seelyn.tdmq.annotation.TdmqHandler;
 import com.seelyn.tdmq.annotation.TdmqTopic;
 import com.seelyn.tdmq.exception.ConsumerInitException;
 import com.seelyn.tdmq.exception.MessageRedeliverException;
-import com.seelyn.tdmq.utils.ExecutorUtils;
 import com.seelyn.tdmq.utils.SchemaUtils;
 import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.EmbeddedValueResolverAware;
-import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.util.StringValueResolver;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 /**
@@ -27,24 +28,25 @@ import java.util.stream.Collectors;
  *
  * @author linfeng
  */
-public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, SmartInitializingSingleton, DisposableBean {
+public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, SmartInitializingSingleton {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerSubscribeFactory.class);
 
     private final PulsarClient pulsarClient;
     private final ConsumerMethodCollection consumerMethodCollection;
-    private final AsyncTaskExecutor consumerBatchExecutor;
+    private final ExecutorService executorServiceBatch;
+    private final int batchThreads;
 
     private StringValueResolver stringValueResolver;
-    private List<Consumer<?>> singleConsumers;
-    private List<ConsumerFuture> batchConsumers;
 
     public ConsumerSubscribeFactory(PulsarClient pulsarClient,
                                     ConsumerMethodCollection consumerMethodCollection,
-                                    AsyncTaskExecutor consumerBatchExecutor) {
+                                    ExecutorService executorServiceBatch,
+                                    TdmqProperties tdmqProperties) {
         this.pulsarClient = pulsarClient;
         this.consumerMethodCollection = consumerMethodCollection;
-        this.consumerBatchExecutor = consumerBatchExecutor;
+        this.executorServiceBatch = executorServiceBatch;
+        this.batchThreads = tdmqProperties.getBatchThreads();
     }
 
     @Override
@@ -58,88 +60,102 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
         //  初始化单消息订阅
         if (!consumerMethodCollection.getSingleMessageConsumer().isEmpty()) {
 
-            singleConsumers = consumerMethodCollection.getSingleMessageConsumer().entrySet()
-                    .stream()
-                    .map(entry -> subscribeSingle(entry.getKey(), entry.getValue()))
-                    .collect(Collectors.toList());
+            consumerMethodCollection.getSingleMessageConsumer().forEach(this::subscribeSingle);
         }
         //  初始化多消息订阅
         if (!consumerMethodCollection.getBatchMessageConsumer().isEmpty()) {
 
-            batchConsumers = consumerMethodCollection.getBatchMessageConsumer().entrySet()
+            List<ConsumerBean> batchConsumers = consumerMethodCollection.getBatchMessageConsumer().entrySet()
                     .stream()
                     .map(entry -> subscribeBatch(entry.getKey(), entry.getValue()))
                     .collect(Collectors.toList());
+            //批量消息
+            batchConsumerListener(batchConsumers);
         }
 
     }
 
-    @Override
-    public void destroy() throws Exception {
-        for (Consumer<?> consumer : singleConsumers) {
-            if (consumer.isConnected()) {
-                consumer.close();
-            }
+    /**
+     * 批量获取消息
+     */
+    private void batchConsumerListener(List<ConsumerBean> batchConsumers) {
+
+        if (CollectionUtils.isEmpty(batchConsumers)) {
+            return;
         }
-        for (ConsumerFuture consumerFuture : batchConsumers) {
-            consumerFuture.future.cancel(true);
-            if (consumerFuture.consumer.isConnected()) {
-                consumerFuture.consumer.close();
-            }
-        }
-    }
 
-    private ConsumerFuture subscribeBatch(String name, ConsumerBatchMessage consumerMessage) {
+        Assert.isTrue(batchThreads > 0, "tdmq.batch-threads=x 值不能小于等于0");
+        Assert.isTrue(batchThreads <= batchConsumers.size(), "tdmq.batch-threads=x 值不能大于订阅数量");
 
-        final ConsumerBuilder<?> clientBuilder = pulsarClient
-                .newConsumer(SchemaUtils.getSchema(consumerMessage.getParamType()))
-                .consumerName("consumer-" + name)
-                .subscriptionName("subscription-" + name)
-                .subscriptionType(consumerMessage.getAnnotation().subscriptionType())
-                .subscriptionMode(consumerMessage.getAnnotation().subscriptionMode());
+        int splitCount = batchConsumers.size() / batchThreads;
+        //按每splitCount个一组分割
+        List<List<ConsumerBean>> batchConsumerParts = Lists.partition(batchConsumers, splitCount);
 
-        // 设置topic和tags
-        topicAndTags(clientBuilder, consumerMessage.getAnnotation());
+        for (List<ConsumerBean> consumerBeans : batchConsumerParts) {
 
-        clientBuilder.batchReceivePolicy(BatchReceivePolicy.builder()
-                .maxNumMessages(consumerMessage.getAnnotation().maxNumMessages())
-                .maxNumBytes(consumerMessage.getAnnotation().maxNumBytes())
-                .timeout(consumerMessage.getAnnotation().timeoutMs(), consumerMessage.getAnnotation().timeoutUnit())
-                .build());
-
-        setDeadLetterPolicy(clientBuilder, consumerMessage.getAnnotation());
-
-        try {
-            Consumer<?> consumer = clientBuilder.subscribe();
-
-            Future<?> future = consumerBatchExecutor.submit(() -> {
+            executorServiceBatch.submit(() -> {
 
                 while (!Thread.currentThread().isInterrupted()) {
-                    //等待接收消息
-                    Messages<?> messages = null;
-                    try {
-                        messages = consumer.batchReceive();
-                    } catch (PulsarClientException e) {
-                        LOGGER.error(e.getLocalizedMessage(), e);
-                    }
-                    if (messages != null && messages.size() <= 0) {
-                        ExecutorUtils.sleep(10, TimeUnit.MILLISECONDS);
-                        continue;
-                    }
-                    try {
-                        //noinspection unchecked
-                        consumerMessage.getListener().received(consumer, messages);
-                        //消息ACK
-                        consumer.acknowledge(messages);
-                    } catch (MessageRedeliverException e) {
-                        consumer.negativeAcknowledge(messages);
-                    } catch (Exception e) {
-                        LOGGER.error(e.getLocalizedMessage(), e);
-                    }
+
+                    consumerBeans.forEach(consumerBean -> {
+
+                        Consumer<?> consumer = consumerBean.consumer;
+                        ConsumerBatchBean batchBean = consumerBean.batchBean;
+                        //等待接收消息
+                        Messages<?> messages = null;
+                        try {
+                            messages = consumer.batchReceive();
+                        } catch (PulsarClientException e) {
+                            LOGGER.error(e.getLocalizedMessage(), e);
+                        }
+                        if (messages != null && messages.size() > 0) {
+                            try {
+                                //noinspection unchecked
+                                batchBean.getListener().received(consumer, messages);
+                                //消息ACK
+                                consumer.acknowledge(messages);
+                            } catch (MessageRedeliverException e) {
+                                consumer.negativeAcknowledge(messages);
+                            } catch (Exception e) {
+                                LOGGER.error(e.getLocalizedMessage(), e);
+                            }
+                        }
+                    });
                 }
             });
+        }
 
-            return new ConsumerFuture(consumer, future);
+    }
+
+    /**
+     * 批量订阅
+     *
+     * @param name         类名
+     * @param consumerBean 订阅关系对象
+     * @return 订阅关系
+     */
+    private ConsumerBean subscribeBatch(String name, ConsumerBatchBean consumerBean) {
+
+        final ConsumerBuilder<?> clientBuilder = pulsarClient
+                .newConsumer(SchemaUtils.getSchema(consumerBean.getParamType()))
+                .consumerName("consumer-" + name)
+                .subscriptionName("subscription-" + name)
+                .subscriptionType(consumerBean.getAnnotation().subscriptionType())
+                .subscriptionMode(consumerBean.getAnnotation().subscriptionMode());
+
+        // 设置topic和tags
+        topicAndTags(clientBuilder, consumerBean.getAnnotation());
+
+        clientBuilder.batchReceivePolicy(BatchReceivePolicy.builder()
+                .maxNumMessages(consumerBean.getAnnotation().maxNumMessages())
+                .maxNumBytes(consumerBean.getAnnotation().maxNumBytes())
+                .timeout(consumerBean.getAnnotation().timeoutMs(), consumerBean.getAnnotation().timeoutUnit())
+                .build());
+
+        setDeadLetterPolicy(clientBuilder, consumerBean.getAnnotation());
+
+        try {
+            return new ConsumerBean(clientBuilder.subscribe(), consumerBean);
         } catch (PulsarClientException e) {
             throw new ConsumerInitException(e.getLocalizedMessage(), e);
         }
@@ -187,23 +203,22 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
     /**
      * 订阅
      *
-     * @param name            类名称
-     * @param consumerMessage 订阅消息对象
-     * @return 订阅 Consumer
+     * @param name         类名称
+     * @param consumerBean 订阅消息对象
      */
-    private Consumer<?> subscribeSingle(String name, ConsumerSingleMessage consumerMessage) {
+    private void subscribeSingle(String name, ConsumerSingleBean consumerBean) {
 
 
         final ConsumerBuilder<?> clientBuilder = pulsarClient
-                .newConsumer(SchemaUtils.getSchema(consumerMessage.getParamType()))
+                .newConsumer(SchemaUtils.getSchema(consumerBean.getParamType()))
                 .consumerName("consumer-" + name)
                 .subscriptionName("subscription-" + name)
-                .subscriptionType(consumerMessage.getAnnotation().subscriptionType())
-                .subscriptionMode(consumerMessage.getAnnotation().subscriptionMode())
+                .subscriptionType(consumerBean.getAnnotation().subscriptionType())
+                .subscriptionMode(consumerBean.getAnnotation().subscriptionMode())
                 .messageListener((consumer, message) -> {
                     try {
                         //noinspection unchecked
-                        consumerMessage.getListener().received(consumer, message);
+                        consumerBean.getListener().received(consumer, message);
                         //消息ACK
                         consumer.acknowledge(message);
                     } catch (MessageRedeliverException e) {
@@ -214,34 +229,27 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
                 });
 
         // 设置topic和tags
-        topicAndTags(clientBuilder, consumerMessage.getAnnotation());
+        topicAndTags(clientBuilder, consumerBean.getAnnotation());
         // 设置
-        setDeadLetterPolicy(clientBuilder, consumerMessage.getAnnotation());
+        setDeadLetterPolicy(clientBuilder, consumerBean.getAnnotation());
 
         try {
-            return clientBuilder.subscribe();
+            clientBuilder.subscribe();
         } catch (PulsarClientException e) {
             throw new ConsumerInitException(e.getLocalizedMessage(), e);
         }
 
     }
 
-    static class ConsumerFuture {
+    static class ConsumerBean {
         Consumer<?> consumer;
-        Future<?> future;
+        ConsumerBatchBean batchBean;
 
-        public ConsumerFuture(Consumer<?> consumer, Future<?> future) {
+        ConsumerBean(Consumer<?> consumer, ConsumerBatchBean batchBean) {
             this.consumer = consumer;
-            this.future = future;
+            this.batchBean = batchBean;
         }
 
-        public Consumer<?> getConsumer() {
-            return consumer;
-        }
-
-        public Future<?> getFuture() {
-            return future;
-        }
     }
 
 }

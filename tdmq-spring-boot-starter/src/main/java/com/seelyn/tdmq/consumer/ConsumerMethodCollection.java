@@ -14,13 +14,13 @@ public interface ConsumerMethodCollection {
      *
      * @return 订阅者执行方法Map
      */
-    ConcurrentMap<String, ConsumerSingleMessage> getSingleMessageConsumer();
+    ConcurrentMap<String, ConsumerSingleBean> getSingleMessageConsumer();
 
     /**
      * 订阅者执行方法
      *
      * @return 订阅者执行方法Map
      */
-    ConcurrentMap<String, ConsumerBatchMessage> getBatchMessageConsumer();
+    ConcurrentMap<String, ConsumerBatchBean> getBatchMessageConsumer();
 
 }

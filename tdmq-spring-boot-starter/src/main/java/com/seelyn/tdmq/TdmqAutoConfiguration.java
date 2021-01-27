@@ -7,6 +7,7 @@ import com.seelyn.tdmq.producer.ListBaseBytesTemplate;
 import com.seelyn.tdmq.producer.ObjectBaseBytesTemplate;
 import com.seelyn.tdmq.producer.StringTdmqTemplate;
 import com.seelyn.tdmq.producer.TdmqTemplate;
+import com.seelyn.tdmq.utils.ExecutorUtils;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -20,13 +21,15 @@ import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
  * @author linfeng
  */
 @Configuration
-@EnableConfigurationProperties({TdmqProperties.class, TdmqBatchProperties.class})
+@EnableConfigurationProperties({TdmqProperties.class})
 public class TdmqAutoConfiguration {
 
     private final TdmqProperties tdmqProperties;
@@ -59,26 +62,20 @@ public class TdmqAutoConfiguration {
         return new ConsumerMethodPostProcessor();
     }
 
-    @Bean("consumerBatchExecutor")
-    public AsyncTaskExecutor consumerBatchExecutor(TdmqBatchProperties batchProperties) {
-        ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
-        taskExecutor.setCorePoolSize(batchProperties.getCorePoolSize());
-        taskExecutor.setMaxPoolSize(batchProperties.getMaxPoolSize());
-        taskExecutor.setQueueCapacity(batchProperties.getQueueCapacity());
-        taskExecutor.setKeepAliveSeconds(batchProperties.getKeepAliveSeconds());
-        taskExecutor.setThreadNamePrefix(batchProperties.getThreadNamePrefix());
-        taskExecutor.setWaitForTasksToCompleteOnShutdown(batchProperties.isWaitForJobsToCompleteOnShutdown());
-        taskExecutor.setAwaitTerminationSeconds(batchProperties.getAwaitTerminationSeconds());
-        return taskExecutor;
+    @Bean("executorService")
+    public ExecutorService executorService(TdmqProperties tdmqProperties) {
+
+        return ExecutorUtils.newFixedThreadPool(tdmqProperties.getBatchThreads());
     }
 
     @Bean
-    @DependsOn({"pulsarClient", "consumerMethodPostProcessor", "consumerBatchExecutor"})
+    @DependsOn({"pulsarClient", "consumerMethodPostProcessor", "executorService"})
     public ConsumerSubscribeFactory consumerSubscribeFactory(PulsarClient pulsarClient,
                                                              ConsumerMethodCollection consumerMethodCollection,
-                                                             AsyncTaskExecutor consumerBatchExecutor) {
+                                                             ExecutorService executorService,
+                                                             TdmqProperties tdmqProperties) {
 
-        return new ConsumerSubscribeFactory(pulsarClient, consumerMethodCollection, consumerBatchExecutor);
+        return new ConsumerSubscribeFactory(pulsarClient, consumerMethodCollection, executorService, tdmqProperties);
     }
 
     @Bean

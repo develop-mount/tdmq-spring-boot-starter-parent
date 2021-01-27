@@ -12,12 +12,12 @@ import org.springframework.stereotype.Component;
  * @author linfeng
  */
 @Component
-@TdmqHandler(topics = {@TdmqTopic(topic = "${eqxiu.scs.mns.topics.content-todo-1.topic}",
-        tags = "${eqxiu.scs.mns.topics.content-todo-1.tags}")})
-public class DemoHandler implements TdmqBatchListener<String> {
+@TdmqHandler(topics = {@TdmqTopic(topic = "${eqxiu.scs.mns.topics.content-todo-5.topic}",
+        tags = "${eqxiu.scs.mns.topics.content-todo-5.tags}")})
+public class DemoHandler5 implements TdmqBatchListener<String> {
 
     @Override
     public void received(Consumer<String> consumer, Messages<String> messages) throws MessageRedeliverException {
-        System.out.println("DemoHandler1:" + messages.size());
+        System.out.println("DemoHandler5:" + messages.size());
     }
 }

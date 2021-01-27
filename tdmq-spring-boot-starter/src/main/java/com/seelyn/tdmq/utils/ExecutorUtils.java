@@ -1,6 +1,7 @@
 package com.seelyn.tdmq.utils;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -12,12 +13,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class ExecutorUtils {
 
-    public static ExecutorService newMaxThreadPool(int maxPoolSize) {
+    public static ExecutorService newFixedThreadPool(int poolSize) {
 
-        return new ThreadPoolExecutor(1, maxPoolSize,
-                60L, TimeUnit.SECONDS,
-                new SynchronousQueue<Runnable>(),
-                new CustomThreadFactory());
+        return new ThreadPoolExecutor(poolSize, poolSize,
+                0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<Runnable>(), new CustomThreadFactory());
     }
 
     public static void sleep(long timeout, TimeUnit timeUnit) {
