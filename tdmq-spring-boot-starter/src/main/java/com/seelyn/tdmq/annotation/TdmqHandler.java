@@ -59,7 +59,7 @@ public @interface TdmqHandler {
     /**
      * @return 最大消息数量
      */
-    int maxNumMessages() default 200;
+    int maxNumMessages() default 1000;
 
     /**
      * @return 最大消息字节
@@ -71,7 +71,7 @@ public @interface TdmqHandler {
      *
      * @return 超时毫秒数
      */
-    int timeoutMs() default 1000;
+    int timeoutMs() default 100;
 
     /**
      * 超时单位

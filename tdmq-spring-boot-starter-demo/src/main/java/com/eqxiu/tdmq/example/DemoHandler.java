@@ -1,28 +1,24 @@
 package com.eqxiu.tdmq.example;
 
-import com.alibaba.fastjson.JSON;
-import com.seelyn.tdmq.TdmqListener;
+import com.eqxiu.soc.iap.mns.dto.ElementCheckTodoDto;
+import com.seelyn.tdmq.TdmqBatchListener;
 import com.seelyn.tdmq.annotation.TdmqHandler;
 import com.seelyn.tdmq.annotation.TdmqTopic;
 import com.seelyn.tdmq.exception.MessageRedeliverException;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Messages;
 import org.springframework.stereotype.Component;
-
-import java.nio.charset.StandardCharsets;
 
 /**
  * @author linfeng
  */
 @Component
-@TdmqHandler(topics = {@TdmqTopic(topic = "${queue}", tags = "demo")})
-public class DemoHandler implements TdmqListener<byte[]> {
+@TdmqHandler(topics = {@TdmqTopic(topic = "${eqxiu.scs.mns.topics.content-todo-general.topic}",
+        tags = "${eqxiu.scs.mns.topics.content-todo-general.tags}")})
+public class DemoHandler implements TdmqBatchListener<ElementCheckTodoDto> {
+
     @Override
-    public void received(Consumer<byte[]> consumer, Message<byte[]> message) throws MessageRedeliverException {
-
-        String json = new String(message.getValue(), StandardCharsets.UTF_8);
-        Demo demo = JSON.parseObject(json, Demo.class);
-        System.out.println(demo);
+    public void received(Consumer<ElementCheckTodoDto> consumer, Messages<ElementCheckTodoDto> messages) throws MessageRedeliverException {
+        System.out.println(messages.size());
     }
-
 }

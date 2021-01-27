@@ -101,17 +101,11 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
         // 设置topic和tags
         topicAndTags(clientBuilder, consumerMessage.getAnnotation());
 
-        if (consumerMessage.getAnnotation().maxNumMessages() > 0) {
-
-            BatchReceivePolicy.Builder builder = BatchReceivePolicy.builder();
-
-            builder.maxNumMessages(consumerMessage.getAnnotation().maxNumMessages());
-            if (consumerMessage.getAnnotation().maxNumBytes() > 0) {
-                builder.maxNumBytes(consumerMessage.getAnnotation().maxNumBytes());
-            }
-            builder.timeout(consumerMessage.getAnnotation().timeoutMs(), consumerMessage.getAnnotation().timeoutUnit());
-            clientBuilder.batchReceivePolicy(builder.build());
-        }
+        clientBuilder.batchReceivePolicy(BatchReceivePolicy.builder()
+                .maxNumMessages(consumerMessage.getAnnotation().maxNumMessages())
+                .maxNumBytes(consumerMessage.getAnnotation().maxNumBytes())
+                .timeout(consumerMessage.getAnnotation().timeoutMs(), consumerMessage.getAnnotation().timeoutUnit())
+                .build());
 
         setDeadLetterPolicy(clientBuilder, consumerMessage.getAnnotation());
 
