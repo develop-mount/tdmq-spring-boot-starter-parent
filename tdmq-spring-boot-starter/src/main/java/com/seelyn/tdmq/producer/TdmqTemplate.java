@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * TDMQ 模板
  *
- * @param <T>
+ * @param <T> 泛型类型
  * @author linfeng
  */
 public class TdmqTemplate<T> {

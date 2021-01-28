@@ -18,8 +18,8 @@ import java.util.concurrent.ConcurrentMap;
  */
 public class ConsumerMethodPostProcessor implements ConsumerMethodCollection, BeanPostProcessor, Ordered {
 
-    private final ConcurrentMap<String, ConsumerSingleMessage> singleMessageConcurrentMap = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, ConsumerBatchMessage> batchMessageConcurrentMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ConsumerSingleBean> singleMessageConcurrentMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ConsumerBatchBean> batchMessageConcurrentMap = new ConcurrentHashMap<>();
 
     @Override
     public int getOrder() {
@@ -35,18 +35,17 @@ public class ConsumerMethodPostProcessor implements ConsumerMethodCollection, Be
         if (tdmqHandler == null) {
             return bean;
         }
+
         if (bean instanceof TdmqListener || bean instanceof TdmqBatchListener) {
 
-            ResolvableType resolvableType = ResolvableType.forClass(targetClass);
-            Class<?> resolveInterface = resolvableType.getInterfaces()[0].getGeneric(0).resolve();
-
+            Class<?> resolveInterface = getResolvableClass(targetClass);
             if (bean instanceof TdmqListener) {
 
-                singleMessageConcurrentMap.putIfAbsent(targetClass.getName(), new ConsumerSingleMessage(tdmqHandler, (TdmqListener<?>) bean, resolveInterface));
+                singleMessageConcurrentMap.putIfAbsent(targetClass.getName(), new ConsumerSingleBean(tdmqHandler, (TdmqListener<?>) bean, resolveInterface));
             }
             if (bean instanceof TdmqBatchListener) {
 
-                batchMessageConcurrentMap.putIfAbsent(targetClass.getName(), new ConsumerBatchMessage(tdmqHandler, (TdmqBatchListener<?>) bean, resolveInterface));
+                batchMessageConcurrentMap.putIfAbsent(targetClass.getName(), new ConsumerBatchBean(tdmqHandler, (TdmqBatchListener<?>) bean, resolveInterface));
             }
         } else {
 
@@ -58,13 +57,22 @@ public class ConsumerMethodPostProcessor implements ConsumerMethodCollection, Be
         return bean;
     }
 
+    public Class<?> getResolvableClass(Class<?> targetClass) {
+        ResolvableType resolvableType = ResolvableType.forClass(targetClass);
+        if (resolvableType.getInterfaces().length <= 0) {
+            return getResolvableClass(targetClass.getSuperclass());
+        } else {
+            return resolvableType.getInterfaces()[0].getGeneric(0).resolve();
+        }
+    }
+
     @Override
-    public ConcurrentMap<String, ConsumerSingleMessage> getSingleMessageConsumer() {
+    public ConcurrentMap<String, ConsumerSingleBean> getSingleMessageConsumer() {
         return singleMessageConcurrentMap;
     }
 
     @Override
-    public ConcurrentMap<String, ConsumerBatchMessage> getBatchMessageConsumer() {
+    public ConcurrentMap<String, ConsumerBatchBean> getBatchMessageConsumer() {
         return batchMessageConcurrentMap;
     }
 }

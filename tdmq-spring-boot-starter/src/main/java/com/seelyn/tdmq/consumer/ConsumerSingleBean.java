@@ -1,6 +1,6 @@
 package com.seelyn.tdmq.consumer;
 
-import com.seelyn.tdmq.TdmqBatchListener;
+import com.seelyn.tdmq.TdmqListener;
 import com.seelyn.tdmq.annotation.TdmqHandler;
 
 /**
@@ -8,15 +8,15 @@ import com.seelyn.tdmq.annotation.TdmqHandler;
  *
  * @author linfeng
  */
-public class ConsumerBatchMessage {
+public class ConsumerSingleBean {
 
     private final TdmqHandler annotation;
-    private final TdmqBatchListener<?> bean;
+    private final TdmqListener<?> listener;
     private final Class<?> paramType;
 
-    ConsumerBatchMessage(TdmqHandler annotation, TdmqBatchListener<?> bean, Class<?> paramType) {
+    ConsumerSingleBean(TdmqHandler annotation, TdmqListener<?> listener, Class<?> paramType) {
         this.annotation = annotation;
-        this.bean = bean;
+        this.listener = listener;
         this.paramType = paramType;
     }
 
@@ -25,8 +25,8 @@ public class ConsumerBatchMessage {
     }
 
     @SuppressWarnings("rawtypes")
-    public TdmqBatchListener getListener() {
-        return bean;
+    public TdmqListener getListener() {
+        return listener;
     }
 
     public Class<?> getParamType() {

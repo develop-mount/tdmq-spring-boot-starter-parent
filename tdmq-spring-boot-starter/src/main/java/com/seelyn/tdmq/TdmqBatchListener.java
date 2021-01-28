@@ -9,7 +9,7 @@ import java.io.Serializable;
 /**
  * 批量接收消息接口
  *
- * @param <T>
+ * @param <T> 泛型
  * @author linfeng
  */
 public interface TdmqBatchListener<T> extends Serializable {
@@ -19,6 +19,7 @@ public interface TdmqBatchListener<T> extends Serializable {
      *
      * @param consumer 订阅对象
      * @param messages 消息
+     * @throws MessageRedeliverException 消息抛回MQ异常
      */
     void received(Consumer<T> consumer, Messages<T> messages) throws MessageRedeliverException;
 

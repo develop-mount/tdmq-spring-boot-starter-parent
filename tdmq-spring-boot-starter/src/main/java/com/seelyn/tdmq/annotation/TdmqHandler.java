@@ -3,11 +3,7 @@ package com.seelyn.tdmq.annotation;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -18,10 +14,25 @@ import java.util.concurrent.TimeUnit;
 @Documented
 public @interface TdmqHandler {
 
+    /**
+     * 主题注解
+     *
+     * @return 主题注解
+     */
     TdmqTopic[] topics();
 
+    /**
+     * 订阅类型
+     *
+     * @return 订阅类型
+     */
     SubscriptionType subscriptionType() default SubscriptionType.Key_Shared;
 
+    /**
+     * 订阅模式
+     *
+     * @return 订阅模式
+     */
     SubscriptionMode subscriptionMode() default SubscriptionMode.Durable;
 
     /**
@@ -46,16 +57,26 @@ public @interface TdmqHandler {
     String deadLetterTopic() default "";
 
     /**
-     * @return
+     * @return 最大消息数量
      */
-    int maxNumMessages() default 200;
+    int maxNumMessages() default 1000;
 
     /**
-     * @return
+     * @return 最大消息字节
      */
-    int maxNumBytes() default 1024 * 1024;
+    int maxNumBytes() default -1;
 
-    int timeoutMs() default 1000;
+    /**
+     * 超时毫秒数
+     *
+     * @return 超时毫秒数
+     */
+    int timeoutMs() default 100;
 
+    /**
+     * 超时单位
+     *
+     * @return 超时单位
+     */
     TimeUnit timeoutUnit() default TimeUnit.MILLISECONDS;
 }
