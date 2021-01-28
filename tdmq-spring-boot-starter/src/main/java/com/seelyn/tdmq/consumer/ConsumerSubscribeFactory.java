@@ -1,6 +1,5 @@
 package com.seelyn.tdmq.consumer;
 
-import com.google.common.collect.Lists;
 import com.seelyn.tdmq.TdmqProperties;
 import com.seelyn.tdmq.annotation.TdmqHandler;
 import com.seelyn.tdmq.annotation.TdmqTopic;
@@ -8,13 +7,8 @@ import com.seelyn.tdmq.exception.ConsumerInitException;
 import com.seelyn.tdmq.exception.MessageRedeliverException;
 import com.seelyn.tdmq.utils.ExecutorUtils;
 import com.seelyn.tdmq.utils.SchemaUtils;
-import org.apache.pulsar.client.api.BatchReceivePolicy;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.DeadLetterPolicy;
-import org.apache.pulsar.client.api.Messages;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.shade.com.google.common.collect.Queues;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -24,9 +18,9 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.util.StringValueResolver;
 
-import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.stream.Collectors;
 
 /**
  * 订阅者，订阅
@@ -48,7 +42,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
                                     TdmqProperties tdmqProperties) {
         this.pulsarClient = pulsarClient;
         this.consumerMethodCollection = consumerMethodCollection;
-        this.batchThreads = tdmqProperties.getMaxBatchThreads();
+        this.batchThreads = tdmqProperties.getBatchThreads();
     }
 
     @Override
@@ -67,12 +61,12 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
         //  初始化多消息订阅
         if (!consumerMethodCollection.getBatchMessageConsumer().isEmpty()) {
 
-            List<ConsumerBean> batchConsumers = consumerMethodCollection.getBatchMessageConsumer().entrySet()
-                    .stream()
-                    .map(entry -> subscribeBatch(entry.getKey(), entry.getValue()))
-                    .collect(Collectors.toList());
+            ConcurrentLinkedQueue<ConsumerBean> concurrentLinkedQueue = Queues.newConcurrentLinkedQueue();
+            for (Map.Entry<String, ConsumerBatchBean> entry : consumerMethodCollection.getBatchMessageConsumer().entrySet()) {
+                concurrentLinkedQueue.add(subscribeBatch(entry.getKey(), entry.getValue()));
+            }
             //批量消息
-            batchConsumerListener(batchConsumers);
+            batchConsumerListener(concurrentLinkedQueue);
         }
 
     }
@@ -80,13 +74,11 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
     /**
      * 批量获取消息
      */
-    private void batchConsumerListener(List<ConsumerBean> batchConsumers) {
+    private void batchConsumerListener(ConcurrentLinkedQueue<ConsumerBean> batchConsumers) {
 
         if (CollectionUtils.isEmpty(batchConsumers)) {
             return;
         }
-
-        Assert.isTrue(batchThreads <= batchConsumers.size(), "tdmq.batch-threads=x 值不能大于订阅数量");
 
         if (batchThreads < 0) {
             batchThreads = batchConsumers.size();
@@ -94,42 +86,41 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
 
         ExecutorService executorServiceBatch = ExecutorUtils.newFixedThreadPool(batchThreads);
 
-        Assert.isTrue(batchThreads > 0, "tdmq.batch-threads=x 值不能小于等于0");
-
-        int splitCount = batchConsumers.size() / batchThreads;
-        //按每splitCount个一组分割
-        List<List<ConsumerBean>> batchConsumerParts = Lists.partition(batchConsumers, splitCount);
-
-        for (List<ConsumerBean> consumerBeans : batchConsumerParts) {
+        for (int i = 0; i < batchThreads; i++) {
 
             executorServiceBatch.submit(() -> {
 
                 while (!Thread.currentThread().isInterrupted()) {
 
-                    consumerBeans.forEach(consumerBean -> {
+                    ConsumerBean consumerBean = batchConsumers.poll();
+                    if (consumerBean == null) {
+                        continue;
+                    }
+                    // 再次添加回队尾，多线程可同时获取相同对象，做多线程处理
+                    batchConsumers.add(consumerBean);
 
-                        Consumer<?> consumer = consumerBean.consumer;
-                        ConsumerBatchBean batchBean = consumerBean.batchBean;
-                        //等待接收消息
-                        Messages<?> messages = null;
+                    Consumer<?> consumer = consumerBean.consumer;
+                    ConsumerBatchBean batchBean = consumerBean.batchBean;
+                    //等待接收消息
+                    Messages<?> messages = null;
+                    try {
+                        messages = consumer.batchReceive();
+                    } catch (PulsarClientException e) {
+                        LOGGER.error(e.getLocalizedMessage(), e);
+                    }
+                    if (messages != null && messages.size() > 0) {
                         try {
-                            messages = consumer.batchReceive();
-                        } catch (PulsarClientException e) {
+                            //noinspection unchecked
+                            batchBean.getListener().received(consumer, messages);
+                            //消息ACK
+                            consumer.acknowledge(messages);
+                        } catch (MessageRedeliverException e) {
+                            consumer.negativeAcknowledge(messages);
+                        } catch (Exception e) {
                             LOGGER.error(e.getLocalizedMessage(), e);
                         }
-                        if (messages != null && messages.size() > 0) {
-                            try {
-                                //noinspection unchecked
-                                batchBean.getListener().received(consumer, messages);
-                                //消息ACK
-                                consumer.acknowledge(messages);
-                            } catch (MessageRedeliverException e) {
-                                consumer.negativeAcknowledge(messages);
-                            } catch (Exception e) {
-                                LOGGER.error(e.getLocalizedMessage(), e);
-                            }
-                        }
-                    });
+                    }
+
                 }
             });
         }

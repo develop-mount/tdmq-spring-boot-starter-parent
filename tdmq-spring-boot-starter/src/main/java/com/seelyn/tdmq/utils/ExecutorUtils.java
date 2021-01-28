@@ -1,11 +1,6 @@
 package com.seelyn.tdmq.utils;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -17,7 +12,7 @@ public class ExecutorUtils {
 
         return new ThreadPoolExecutor(poolSize, poolSize,
                 0L, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<Runnable>(), new CustomThreadFactory());
+                new LinkedBlockingQueue<>(), new ConsumerBatchThreadFactory());
     }
 
     public static void sleep(long timeout, TimeUnit timeUnit) {
@@ -28,24 +23,21 @@ public class ExecutorUtils {
         }
     }
 
-    static class CustomThreadFactory implements ThreadFactory {
+    static class ConsumerBatchThreadFactory implements ThreadFactory {
 
-        private static final AtomicInteger POOL_NUMBER = new AtomicInteger(1);
         private final ThreadGroup group;
         private final AtomicInteger threadNumber = new AtomicInteger(1);
         private final String namePrefix;
 
-        CustomThreadFactory() {
+        ConsumerBatchThreadFactory() {
             SecurityManager s = System.getSecurityManager();
             group = (s != null) ? s.getThreadGroup() :
                     Thread.currentThread().getThreadGroup();
-            namePrefix = "tdmq-" +
-                    POOL_NUMBER.getAndIncrement() +
-                    "-thread-";
+            namePrefix = "tdmq-batch-thread-";
         }
 
         @Override
-        public Thread newThread(Runnable runnable) {
+        public Thread newThread(@SuppressWarnings("NullableProblems") Runnable runnable) {
             Thread thread = new Thread(group, runnable,
                     namePrefix + threadNumber.getAndIncrement(),
                     0);

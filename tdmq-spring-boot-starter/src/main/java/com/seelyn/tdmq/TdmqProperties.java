@@ -21,7 +21,7 @@ public class TdmqProperties {
     private Integer operationTimeoutSec = 15;
     private Integer startingBackoffIntervalMs = 100;
     private Integer maxBackoffIntervalSec = 10;
-    private Integer maxBatchThreads = -1;
+    private Integer batchThreads = -1;
 
     public String getServiceUrl() {
         return serviceUrl;
@@ -115,11 +115,11 @@ public class TdmqProperties {
         return enableTcpNoDelay;
     }
 
-    public Integer getMaxBatchThreads() {
-        return maxBatchThreads;
+    public Integer getBatchThreads() {
+        return batchThreads;
     }
 
-    public void setMaxBatchThreads(Integer maxBatchThreads) {
-        this.maxBatchThreads = maxBatchThreads;
+    public void setBatchThreads(Integer batchThreads) {
+        this.batchThreads = batchThreads;
     }
 }
