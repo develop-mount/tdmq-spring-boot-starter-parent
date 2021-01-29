@@ -8,6 +8,9 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Messages;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
+import java.util.Map;
+
 /**
  * @author linfeng
  */
