@@ -13,23 +13,28 @@ import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-public abstract class ObjectBaseBytesListener<T> implements TdmqListener<byte[]> {
+/**
+ * 集合订阅
+ *
+ * @author linfeng
+ */
+public abstract class BaseListTdmqListener<T> implements TdmqListener<byte[]> {
 
     private final Class<T> resolveClass;
 
-    public ObjectBaseBytesListener() {
+    public BaseListTdmqListener() {
         Type superClass = getClass().getGenericSuperclass();
         //如果泛型类是Class的实例，不包含泛型
         if (superClass instanceof Class<?>) {
-            throw new RuntimeException(String.format("%s缺少泛型实现", ObjectBaseBytesListener.class.getName()));
+            throw new RuntimeException(String.format("%s缺少泛型实现", BaseListTdmqListener.class.getName()));
         }
         ResolvableType resolvableType = ResolvableType.forType(superClass);
         List<Class<?>> classList = ResolvableTypeUtils.getResolvableType(resolvableType.getGeneric(0));
         if (CollectionUtils.isEmpty(classList)) {
-            throw new RuntimeException(String.format("%s缺少泛型实现", ObjectBaseBytesListener.class.getName()));
+            throw new RuntimeException(String.format("%s缺少泛型实现", BaseListTdmqListener.class.getName()));
         }
         if (classList.size() > 1) {
-            throw new RuntimeException(String.format("%s不能包含多层泛型实现", ObjectBaseBytesListener.class.getName()));
+            throw new RuntimeException(String.format("%s不能包含多层泛型实现", BaseListTdmqListener.class.getName()));
         }
         //noinspection unchecked
         resolveClass = (Class<T>) classList.get(0);
@@ -46,10 +51,11 @@ public abstract class ObjectBaseBytesListener<T> implements TdmqListener<byte[]>
         if (!StringUtils.hasLength(json)) {
             return;
         }
-        T data = JsonMapperUtils.getInstance().fromJson(json, resolveClass);
-        if (data != null) {
-            receive(consumer, message, data);
+        List<T> data = JsonMapperUtils.getInstance().fromJson(json, List.class, resolveClass);
+        if (CollectionUtils.isEmpty(data)) {
+            return;
         }
+        receive(consumer, message, data);
     }
 
     /**
@@ -60,6 +66,6 @@ public abstract class ObjectBaseBytesListener<T> implements TdmqListener<byte[]>
      * @param data     转换后的对象
      * @throws MessageRedeliverException 抛回重新处理异常
      */
-    protected abstract void receive(Consumer<byte[]> consumer, Message<byte[]> message, T data) throws MessageRedeliverException;
+    protected abstract void receive(Consumer<byte[]> consumer, Message<byte[]> message, List<T> data) throws MessageRedeliverException;
 
 }

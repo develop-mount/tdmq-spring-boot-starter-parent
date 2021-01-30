@@ -1,6 +1,6 @@
 package com.seelyn.tdmq.consumer;
 
-import com.seelyn.tdmq.TdmqBatchListener;
+import com.seelyn.tdmq.BatchTdmqListener;
 import com.seelyn.tdmq.TdmqListener;
 import com.seelyn.tdmq.annotation.TdmqHandler;
 import org.springframework.aop.support.AopUtils;
@@ -16,10 +16,10 @@ import java.util.concurrent.ConcurrentMap;
 /**
  * @author linfeng
  */
-public class ConsumerMethodPostProcessor implements ConsumerMethodCollection, BeanPostProcessor, Ordered {
+public class ConsumerBeanPostProcessor implements ConsumerBeanCollection, BeanPostProcessor, Ordered {
 
-    private final ConcurrentMap<String, ConsumerSingleBean> singleMessageConcurrentMap = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, ConsumerBatchBean> batchMessageConcurrentMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ConsumerBeanSingle> singleMessageConcurrentMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ConsumerBeanBatch> batchMessageConcurrentMap = new ConcurrentHashMap<>();
 
     @Override
     public int getOrder() {
@@ -36,28 +36,28 @@ public class ConsumerMethodPostProcessor implements ConsumerMethodCollection, Be
             return bean;
         }
 
-        if (bean instanceof TdmqListener || bean instanceof TdmqBatchListener) {
+        if (bean instanceof TdmqListener || bean instanceof BatchTdmqListener) {
 
             Class<?> resolveInterface = getResolvableClass(targetClass);
             if (bean instanceof TdmqListener) {
 
-                singleMessageConcurrentMap.putIfAbsent(targetClass.getName(), new ConsumerSingleBean(tdmqHandler, (TdmqListener<?>) bean, resolveInterface));
+                singleMessageConcurrentMap.putIfAbsent(targetClass.getName(), new ConsumerBeanSingle(tdmqHandler, (TdmqListener<?>) bean, resolveInterface));
             }
-            if (bean instanceof TdmqBatchListener) {
+            if (bean instanceof BatchTdmqListener) {
 
-                batchMessageConcurrentMap.putIfAbsent(targetClass.getName(), new ConsumerBatchBean(tdmqHandler, (TdmqBatchListener<?>) bean, resolveInterface));
+                batchMessageConcurrentMap.putIfAbsent(targetClass.getName(), new ConsumerBeanBatch(tdmqHandler, (BatchTdmqListener<?>) bean, resolveInterface));
             }
         } else {
 
             throw new IllegalStateException(String.format(
                     "@TdmqHandler found on bean target class '%s', " +
-                            "but not found in any interface(s) for TdmqListener or TdmqBatchListener", targetClass.getSimpleName()));
+                            "but not found in any interface(s) for TdmqListener or BatchTdmqListener", targetClass.getSimpleName()));
         }
 
         return bean;
     }
 
-    public Class<?> getResolvableClass(Class<?> targetClass) {
+    private Class<?> getResolvableClass(Class<?> targetClass) {
         ResolvableType resolvableType = ResolvableType.forClass(targetClass);
         if (resolvableType.getInterfaces().length <= 0) {
             return getResolvableClass(targetClass.getSuperclass());
@@ -67,12 +67,12 @@ public class ConsumerMethodPostProcessor implements ConsumerMethodCollection, Be
     }
 
     @Override
-    public ConcurrentMap<String, ConsumerSingleBean> getSingleMessageConsumer() {
+    public ConcurrentMap<String, ConsumerBeanSingle> getSingleMessageConsumer() {
         return singleMessageConcurrentMap;
     }
 
     @Override
-    public ConcurrentMap<String, ConsumerBatchBean> getBatchMessageConsumer() {
+    public ConcurrentMap<String, ConsumerBeanBatch> getBatchMessageConsumer() {
         return batchMessageConcurrentMap;
     }
 }

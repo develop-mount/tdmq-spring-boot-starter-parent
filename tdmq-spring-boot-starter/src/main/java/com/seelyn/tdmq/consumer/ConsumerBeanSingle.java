@@ -8,13 +8,13 @@ import com.seelyn.tdmq.annotation.TdmqHandler;
  *
  * @author linfeng
  */
-public class ConsumerSingleBean {
+public class ConsumerBeanSingle {
 
     private final TdmqHandler annotation;
     private final TdmqListener<?> listener;
     private final Class<?> paramType;
 
-    ConsumerSingleBean(TdmqHandler annotation, TdmqListener<?> listener, Class<?> paramType) {
+    ConsumerBeanSingle(TdmqHandler annotation, TdmqListener<?> listener, Class<?> paramType) {
         this.annotation = annotation;
         this.listener = listener;
         this.paramType = paramType;

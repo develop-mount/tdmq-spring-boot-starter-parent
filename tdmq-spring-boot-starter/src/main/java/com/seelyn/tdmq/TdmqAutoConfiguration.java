@@ -1,13 +1,12 @@
 package com.seelyn.tdmq;
 
-import com.seelyn.tdmq.consumer.ConsumerMethodCollection;
-import com.seelyn.tdmq.consumer.ConsumerMethodPostProcessor;
+import com.seelyn.tdmq.consumer.ConsumerBeanCollection;
+import com.seelyn.tdmq.consumer.ConsumerBeanPostProcessor;
 import com.seelyn.tdmq.consumer.ConsumerSubscribeFactory;
 import com.seelyn.tdmq.producer.ListBaseBytesTemplate;
 import com.seelyn.tdmq.producer.ObjectBaseBytesTemplate;
 import com.seelyn.tdmq.producer.StringTdmqTemplate;
 import com.seelyn.tdmq.producer.TdmqTemplate;
-import com.seelyn.tdmq.utils.ExecutorUtils;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -17,12 +16,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
-import org.springframework.core.task.AsyncTaskExecutor;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -58,17 +52,17 @@ public class TdmqAutoConfiguration {
     }
 
     @Bean("consumerMethodPostProcessor")
-    public ConsumerMethodPostProcessor consumerMethodPostProcessor() {
-        return new ConsumerMethodPostProcessor();
+    public ConsumerBeanPostProcessor consumerMethodPostProcessor() {
+        return new ConsumerBeanPostProcessor();
     }
 
     @Bean
     @DependsOn({"pulsarClient", "consumerMethodPostProcessor"})
     public ConsumerSubscribeFactory consumerSubscribeFactory(PulsarClient pulsarClient,
-                                                             ConsumerMethodCollection consumerMethodCollection,
+                                                             ConsumerBeanCollection consumerBeanCollection,
                                                              TdmqProperties tdmqProperties) {
 
-        return new ConsumerSubscribeFactory(pulsarClient, consumerMethodCollection, tdmqProperties);
+        return new ConsumerSubscribeFactory(pulsarClient, consumerBeanCollection, tdmqProperties);
     }
 
     @Bean

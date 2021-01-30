@@ -32,16 +32,16 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
     private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerSubscribeFactory.class);
 
     private final PulsarClient pulsarClient;
-    private final ConsumerMethodCollection consumerMethodCollection;
+    private final ConsumerBeanCollection consumerBeanCollection;
 
     private int batchThreads;
     private StringValueResolver stringValueResolver;
 
     public ConsumerSubscribeFactory(PulsarClient pulsarClient,
-                                    ConsumerMethodCollection consumerMethodCollection,
+                                    ConsumerBeanCollection consumerBeanCollection,
                                     TdmqProperties tdmqProperties) {
         this.pulsarClient = pulsarClient;
-        this.consumerMethodCollection = consumerMethodCollection;
+        this.consumerBeanCollection = consumerBeanCollection;
         this.batchThreads = tdmqProperties.getBatchThreads();
     }
 
@@ -54,15 +54,15 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
     public void afterSingletonsInstantiated() {
 
         //  初始化单消息订阅
-        if (!consumerMethodCollection.getSingleMessageConsumer().isEmpty()) {
+        if (!consumerBeanCollection.getSingleMessageConsumer().isEmpty()) {
 
-            consumerMethodCollection.getSingleMessageConsumer().forEach(this::subscribeSingle);
+            consumerBeanCollection.getSingleMessageConsumer().forEach(this::subscribeSingle);
         }
         //  初始化多消息订阅
-        if (!consumerMethodCollection.getBatchMessageConsumer().isEmpty()) {
+        if (!consumerBeanCollection.getBatchMessageConsumer().isEmpty()) {
 
             ConcurrentLinkedQueue<ConsumerBean> concurrentLinkedQueue = Queues.newConcurrentLinkedQueue();
-            for (Map.Entry<String, ConsumerBatchBean> entry : consumerMethodCollection.getBatchMessageConsumer().entrySet()) {
+            for (Map.Entry<String, ConsumerBeanBatch> entry : consumerBeanCollection.getBatchMessageConsumer().entrySet()) {
                 concurrentLinkedQueue.add(subscribeBatch(entry.getKey(), entry.getValue()));
             }
             //批量消息
@@ -80,7 +80,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
             return;
         }
 
-        if (batchThreads < 0) {
+        if (batchThreads <= 0) {
             batchThreads = batchConsumers.size();
         }
 
@@ -100,7 +100,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
                     batchConsumers.add(consumerBean);
 
                     Consumer<?> consumer = consumerBean.consumer;
-                    ConsumerBatchBean batchBean = consumerBean.batchBean;
+                    ConsumerBeanBatch batchBean = consumerBean.batchBean;
                     //等待接收消息
                     Messages<?> messages = null;
                     try {
@@ -134,7 +134,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      * @param consumerBean 订阅关系对象
      * @return 订阅关系
      */
-    private ConsumerBean subscribeBatch(String name, ConsumerBatchBean consumerBean) {
+    private ConsumerBean subscribeBatch(String name, ConsumerBeanBatch consumerBean) {
 
         final ConsumerBuilder<?> clientBuilder = pulsarClient
                 .newConsumer(SchemaUtils.getSchema(consumerBean.getParamType()))
@@ -206,7 +206,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      * @param name         类名称
      * @param consumerBean 订阅消息对象
      */
-    private void subscribeSingle(String name, ConsumerSingleBean consumerBean) {
+    private void subscribeSingle(String name, ConsumerBeanSingle consumerBean) {
 
 
         final ConsumerBuilder<?> clientBuilder = pulsarClient
@@ -243,9 +243,9 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
 
     static class ConsumerBean {
         Consumer<?> consumer;
-        ConsumerBatchBean batchBean;
+        ConsumerBeanBatch batchBean;
 
-        ConsumerBean(Consumer<?> consumer, ConsumerBatchBean batchBean) {
+        ConsumerBean(Consumer<?> consumer, ConsumerBeanBatch batchBean) {
             this.consumer = consumer;
             this.batchBean = batchBean;
         }

@@ -12,7 +12,7 @@ import java.io.Serializable;
  * @param <T> 泛型
  * @author linfeng
  */
-public interface TdmqBatchListener<T> extends Serializable {
+public interface BatchTdmqListener<T> extends Serializable {
 
     /**
      * 接收消息
