@@ -3,7 +3,9 @@ package com.seelyn.tdmq.utils;
 import org.apache.pulsar.client.api.Schema;
 
 import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.Date;
+import java.util.Map;
 
 /**
  * @author linfeng
@@ -32,8 +34,9 @@ public enum SchemaUtils {
 
     /**
      * 构造函数
+     *
      * @param className 类名称
-     * @param schema schema
+     * @param schema    schema
      */
     SchemaUtils(String className, Schema schema) {
         this.className = className;
@@ -42,8 +45,9 @@ public enum SchemaUtils {
 
     /**
      * 得到Schema
+     *
      * @param clazz 类
-     * @param <T> 泛型
+     * @param <T>   泛型
      * @return Schema
      */
     public static <T> Schema<T> getSchema(Class<T> clazz) {
@@ -53,6 +57,74 @@ public enum SchemaUtils {
                 return (Schema<T>) schemaUtils.schema;
             }
         }
+
         return Schema.JSON(clazz);
+    }
+
+    /**
+     * 验证是否支持类型
+     *
+     * @param clazz 类型
+     * @param <T>   泛型
+     * @return 是否支持
+     */
+    public static <T> boolean validateSchema(Class<T> clazz) {
+        for (SupportClass supportClass : SupportClass.values()) {
+            if (supportClass.clazz.isAssignableFrom(clazz)) {
+                return true;
+            }
+        }
+        for (NotSupportClass notSupportClass : NotSupportClass.values()) {
+            if (notSupportClass.clazz.isAssignableFrom(clazz)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 支持类型
+     */
+    enum SupportClass {
+        /**
+         *
+         */
+        BYTES(byte[].class),
+        BYTE_BUFFER(ByteBuffer.class),
+        STRING(String.class),
+        BYTE(Byte.class),
+        SHORT(Short.class),
+        INTEGER(Integer.class),
+        LONG(Long.class),
+        BOOL(Boolean.class),
+        FLOAT(Float.class),
+        DOUBLE(Double.class),
+        DATE(Date.class),
+        TIME(java.sql.Time.class),
+        TIMESTAMP(java.sql.Timestamp.class);
+
+        private Class<?> clazz;
+
+        SupportClass(Class<?> clazz) {
+            this.clazz = clazz;
+        }
+    }
+
+    /**
+     * 不支持类型
+     */
+    enum NotSupportClass {
+        /**
+         * 集合接口
+         */
+        COLLECTION(Collection.class),
+        MAP(Map.class);
+
+        private Class<?> clazz;
+
+        NotSupportClass(Class<?> clazz) {
+            this.clazz = clazz;
+        }
+
     }
 }

@@ -10,18 +10,18 @@ import com.seelyn.tdmq.annotation.TdmqHandler;
  */
 public class ConsumerBeanBatch {
 
-    private final TdmqHandler annotation;
+    private final TdmqHandler handler;
     private final BatchTdmqListener<?> bean;
-    private final Class<?> paramType;
+    private final Class<?> genericType;
 
-    ConsumerBeanBatch(TdmqHandler annotation, BatchTdmqListener<?> bean, Class<?> paramType) {
-        this.annotation = annotation;
+    ConsumerBeanBatch(TdmqHandler handler, BatchTdmqListener<?> bean, Class<?> genericType) {
+        this.handler = handler;
         this.bean = bean;
-        this.paramType = paramType;
+        this.genericType = genericType;
     }
 
-    public TdmqHandler getAnnotation() {
-        return annotation;
+    public TdmqHandler getHandler() {
+        return handler;
     }
 
     @SuppressWarnings("rawtypes")
@@ -29,7 +29,7 @@ public class ConsumerBeanBatch {
         return bean;
     }
 
-    public Class<?> getParamType() {
-        return paramType;
+    public Class<?> getGenericType() {
+        return genericType;
     }
 }

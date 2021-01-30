@@ -137,22 +137,22 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
     private ConsumerBean subscribeBatch(String name, ConsumerBeanBatch consumerBean) {
 
         final ConsumerBuilder<?> clientBuilder = pulsarClient
-                .newConsumer(SchemaUtils.getSchema(consumerBean.getParamType()))
+                .newConsumer(SchemaUtils.getSchema(consumerBean.getGenericType()))
                 .consumerName("consumer-" + name)
                 .subscriptionName("subscription-" + name)
-                .subscriptionType(consumerBean.getAnnotation().subscriptionType())
-                .subscriptionMode(consumerBean.getAnnotation().subscriptionMode());
+                .subscriptionType(consumerBean.getHandler().subscriptionType())
+                .subscriptionMode(consumerBean.getHandler().subscriptionMode());
 
         // 设置topic和tags
-        topicAndTags(clientBuilder, consumerBean.getAnnotation());
+        topicAndTags(clientBuilder, consumerBean.getHandler());
 
         clientBuilder.batchReceivePolicy(BatchReceivePolicy.builder()
-                .maxNumMessages(consumerBean.getAnnotation().maxNumMessages())
-                .maxNumBytes(consumerBean.getAnnotation().maxNumBytes())
-                .timeout(consumerBean.getAnnotation().timeoutMs(), consumerBean.getAnnotation().timeoutUnit())
+                .maxNumMessages(consumerBean.getHandler().maxNumMessages())
+                .maxNumBytes(consumerBean.getHandler().maxNumBytes())
+                .timeout(consumerBean.getHandler().timeoutMs(), consumerBean.getHandler().timeoutUnit())
                 .build());
 
-        setDeadLetterPolicy(clientBuilder, consumerBean.getAnnotation());
+        setDeadLetterPolicy(clientBuilder, consumerBean.getHandler());
 
         try {
             return new ConsumerBean(clientBuilder.subscribe(), consumerBean);
@@ -210,11 +210,11 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
 
 
         final ConsumerBuilder<?> clientBuilder = pulsarClient
-                .newConsumer(SchemaUtils.getSchema(consumerBean.getParamType()))
+                .newConsumer(SchemaUtils.getSchema(consumerBean.getGenericType()))
                 .consumerName("consumer-" + name)
                 .subscriptionName("subscription-" + name)
-                .subscriptionType(consumerBean.getAnnotation().subscriptionType())
-                .subscriptionMode(consumerBean.getAnnotation().subscriptionMode())
+                .subscriptionType(consumerBean.getHandler().subscriptionType())
+                .subscriptionMode(consumerBean.getHandler().subscriptionMode())
                 .messageListener((consumer, message) -> {
                     try {
                         //noinspection unchecked
@@ -229,9 +229,9 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
                 });
 
         // 设置topic和tags
-        topicAndTags(clientBuilder, consumerBean.getAnnotation());
+        topicAndTags(clientBuilder, consumerBean.getHandler());
         // 设置
-        setDeadLetterPolicy(clientBuilder, consumerBean.getAnnotation());
+        setDeadLetterPolicy(clientBuilder, consumerBean.getHandler());
 
         try {
             clientBuilder.subscribe();
@@ -249,7 +249,6 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
             this.consumer = consumer;
             this.batchBean = batchBean;
         }
-
     }
 
 }
