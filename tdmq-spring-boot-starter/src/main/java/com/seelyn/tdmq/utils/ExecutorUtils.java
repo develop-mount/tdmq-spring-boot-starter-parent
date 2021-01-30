@@ -33,7 +33,7 @@ public class ExecutorUtils {
             SecurityManager s = System.getSecurityManager();
             group = (s != null) ? s.getThreadGroup() :
                     Thread.currentThread().getThreadGroup();
-            namePrefix = "tdmq-batch-thread-";
+            namePrefix = "tdmq-batch-";
         }
 
         @Override
