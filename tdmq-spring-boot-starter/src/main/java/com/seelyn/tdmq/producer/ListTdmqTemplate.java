@@ -9,24 +9,24 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 
-public class ObjectBaseBytesTemplate extends TdmqTemplate<byte[]> {
-    public ObjectBaseBytesTemplate(PulsarClient pulsarClient) {
+public class ListTdmqTemplate extends TdmqTemplate<byte[]> {
+    public ListTdmqTemplate(PulsarClient pulsarClient) {
         super(pulsarClient);
     }
 
-    public <T> TypedMessageBuilder<byte[]> createMessageOfObject(String topic, T message) {
+    public <T> TypedMessageBuilder<byte[]> createMessageOfList(String topic, T message) {
 
         String json = JsonMapperUtils.getInstance().toJson(message);
         return super.createMessage(topic, json.getBytes(StandardCharsets.UTF_8));
     }
 
-    public <T> MessageId sendOfObject(String topic, T message) throws PulsarClientException {
+    public <T> MessageId sendOfList(String topic, T message) throws PulsarClientException {
 
         String json = JsonMapperUtils.getInstance().toJson(message);
         return super.send(topic, json.getBytes(StandardCharsets.UTF_8));
     }
 
-    public <T> CompletableFuture<MessageId> sendAsyncOfObject(String topic, T message) {
+    public <T> CompletableFuture<MessageId> sendAsyncOfList(String topic, T message) {
 
         String json = JsonMapperUtils.getInstance().toJson(message);
         return super.sendAsync(topic, json.getBytes(StandardCharsets.UTF_8));

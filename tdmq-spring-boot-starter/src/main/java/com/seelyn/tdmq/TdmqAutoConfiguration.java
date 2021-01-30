@@ -3,8 +3,8 @@ package com.seelyn.tdmq;
 import com.seelyn.tdmq.consumer.ConsumerBeanCollection;
 import com.seelyn.tdmq.consumer.ConsumerBeanPostProcessor;
 import com.seelyn.tdmq.consumer.ConsumerSubscribeFactory;
-import com.seelyn.tdmq.producer.ListBaseBytesTemplate;
-import com.seelyn.tdmq.producer.ObjectBaseBytesTemplate;
+import com.seelyn.tdmq.producer.ListTdmqTemplate;
+import com.seelyn.tdmq.producer.ObjectTdmqTemplate;
 import com.seelyn.tdmq.producer.StringTdmqTemplate;
 import com.seelyn.tdmq.producer.TdmqTemplate;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -72,13 +72,13 @@ public class TdmqAutoConfiguration {
 
 
     @Bean
-    public ListBaseBytesTemplate listBaseBytesTemplate(PulsarClient pulsarClient) {
-        return new ListBaseBytesTemplate(pulsarClient);
+    public ListTdmqTemplate listBaseBytesTemplate(PulsarClient pulsarClient) {
+        return new ListTdmqTemplate(pulsarClient);
     }
 
     @Bean
-    public ObjectBaseBytesTemplate objectBaseBytesTemplate(PulsarClient pulsarClient) {
-        return new ObjectBaseBytesTemplate(pulsarClient);
+    public ObjectTdmqTemplate objectBaseBytesTemplate(PulsarClient pulsarClient) {
+        return new ObjectTdmqTemplate(pulsarClient);
     }
 
     @Bean
