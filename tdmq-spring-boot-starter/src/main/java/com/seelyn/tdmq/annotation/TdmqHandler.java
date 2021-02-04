@@ -26,7 +26,7 @@ public @interface TdmqHandler {
      *
      * @return 订阅类型
      */
-    SubscriptionType subscriptionType() default SubscriptionType.Key_Shared;
+    SubscriptionType subscriptionType() default SubscriptionType.Shared;
 
     /**
      * 订阅模式

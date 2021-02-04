@@ -2,7 +2,9 @@ package com.seelyn.tdmq.producer;
 
 import com.seelyn.tdmq.exception.ProducerInitException;
 import com.seelyn.tdmq.utils.SchemaUtils;
+import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -50,6 +52,8 @@ public class TdmqTemplate<T> {
             @SuppressWarnings("unchecked")
             Class<T> tClass = (Class<T>) holder;
             return pulsarClient.newProducer(SchemaUtils.getSchema(tClass))
+                    .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                    .hashingScheme(HashingScheme.Murmur3_32Hash)
                     .topic(topic)
                     .create();
         } catch (PulsarClientException e) {
