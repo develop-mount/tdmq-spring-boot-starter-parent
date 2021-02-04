@@ -19,7 +19,9 @@ import org.springframework.util.StringUtils;
 import org.springframework.util.StringValueResolver;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -101,13 +103,18 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
 
                     Consumer<?> consumer = consumerBean.consumer;
                     ConsumerBeanBatch batchBean = consumerBean.batchBean;
-                    //等待接收消息
+
+                    CompletableFuture<? extends Messages<?>> completableFuture = consumer.batchReceiveAsync();
                     Messages<?> messages = null;
                     try {
-                        messages = consumer.batchReceive();
-                    } catch (PulsarClientException e) {
+                        messages = completableFuture.get();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        LOGGER.error(e.getLocalizedMessage(), e);
+                    } catch (ExecutionException e) {
                         LOGGER.error(e.getLocalizedMessage(), e);
                     }
+
                     if (messages != null && messages.size() > 0) {
                         try {
                             //noinspection unchecked
