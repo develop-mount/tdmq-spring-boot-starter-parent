@@ -14,6 +14,21 @@ import java.util.concurrent.TimeUnit;
 @Documented
 public @interface TdmqHandler {
 
+
+    /**
+     * 订阅名称
+     *
+     * @return 订阅名称
+     */
+    String subscriptionName() default "";
+
+    /**
+     * 消费者名称
+     *
+     * @return 消费者名称
+     */
+    String consumerName() default "";
+
     /**
      * 主题注解
      *

@@ -50,11 +50,11 @@ public class ConsumerBeanPostProcessor implements ConsumerBeanCollection, BeanPo
             if (bean instanceof TdmqListener) {
 
                 singleMessageConcurrentMap.putIfAbsent(targetClass.getName(),
-                        new ConsumerBeanSingle(tdmqHandler, (TdmqListener<?>) bean, resolveInterface));
+                        new ConsumerBeanSingle(targetClass.getName(), tdmqHandler, (TdmqListener<?>) bean, resolveInterface));
             } else {
 
                 batchMessageConcurrentMap.putIfAbsent(targetClass.getName(),
-                        new ConsumerBeanBatch(tdmqHandler, (BatchTdmqListener<?>) bean, resolveInterface));
+                        new ConsumerBeanBatch(targetClass.getName(), tdmqHandler, (BatchTdmqListener<?>) bean, resolveInterface));
             }
         } else {
 

@@ -8,13 +8,14 @@ import com.seelyn.tdmq.annotation.TdmqHandler;
  *
  * @author linfeng
  */
-public class ConsumerBeanBatch {
+public class ConsumerBeanBatch extends ConsumerBean {
 
     private final TdmqHandler handler;
     private final BatchTdmqListener<?> bean;
     private final Class<?> genericType;
 
-    ConsumerBeanBatch(TdmqHandler handler, BatchTdmqListener<?> bean, Class<?> genericType) {
+    ConsumerBeanBatch(String name, TdmqHandler handler, BatchTdmqListener<?> bean, Class<?> genericType) {
+        super(name, handler);
         this.handler = handler;
         this.bean = bean;
         this.genericType = genericType;

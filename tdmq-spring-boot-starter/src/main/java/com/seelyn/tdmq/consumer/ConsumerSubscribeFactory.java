@@ -32,7 +32,8 @@ import java.util.concurrent.ExecutorService;
 public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, SmartInitializingSingleton {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerSubscribeFactory.class);
-
+    private static final String CONSUMER_NAME_PREFIX = "consumer-";
+    private static final String SUBSCRIPTION_NAME_PREFIX = "subscription-";
     private final PulsarClient pulsarClient;
     private final ConsumerBeanCollection consumerBeanCollection;
 
@@ -56,16 +57,18 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
     public void afterSingletonsInstantiated() {
 
         //  初始化单消息订阅
-        if (!consumerBeanCollection.getSingleMessageConsumer().isEmpty()) {
+        if (!CollectionUtils.isEmpty(consumerBeanCollection.getSingleMessageConsumer())) {
 
-            consumerBeanCollection.getSingleMessageConsumer().forEach(this::subscribeSingle);
+            for (Map.Entry<String, ConsumerBeanSingle> entry : consumerBeanCollection.getSingleMessageConsumer().entrySet()) {
+                subscribeSingle(entry.getValue());
+            }
         }
         //  初始化多消息订阅
-        if (!consumerBeanCollection.getBatchMessageConsumer().isEmpty()) {
+        if (!CollectionUtils.isEmpty(consumerBeanCollection.getBatchMessageConsumer())) {
 
             ConcurrentLinkedQueue<ConsumerBean> concurrentLinkedQueue = Queues.newConcurrentLinkedQueue();
             for (Map.Entry<String, ConsumerBeanBatch> entry : consumerBeanCollection.getBatchMessageConsumer().entrySet()) {
-                concurrentLinkedQueue.add(subscribeBatch(entry.getKey(), entry.getValue()));
+                concurrentLinkedQueue.add(subscribeBatch(entry.getValue()));
             }
             //批量消息
             batchConsumerListener(concurrentLinkedQueue);
@@ -137,16 +140,15 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
     /**
      * 批量订阅
      *
-     * @param name         类名
      * @param consumerBean 订阅关系对象
      * @return 订阅关系
      */
-    private ConsumerBean subscribeBatch(String name, ConsumerBeanBatch consumerBean) {
+    private ConsumerBean subscribeBatch(ConsumerBeanBatch consumerBean) {
 
         final ConsumerBuilder<?> clientBuilder = pulsarClient
                 .newConsumer(SchemaUtils.getSchema(consumerBean.getGenericType()))
-                .consumerName("consumer-" + name)
-                .subscriptionName("subscription-" + name)
+                .consumerName(consumerBean.getConsumerName())
+                .subscriptionName(consumerBean.getSubscriptionName())
                 .subscriptionType(consumerBean.getHandler().subscriptionType())
                 .subscriptionMode(consumerBean.getHandler().subscriptionMode());
 
@@ -179,11 +181,9 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
             final DeadLetterPolicy.DeadLetterPolicyBuilder deadLetterBuilder = DeadLetterPolicy.builder();
 
             deadLetterBuilder.maxRedeliverCount(annotation.maxRedeliverCount());
-
-            if (!annotation.deadLetterTopic().isEmpty()) {
+            if (StringUtils.hasLength(annotation.deadLetterTopic())) {
                 deadLetterBuilder.deadLetterTopic(annotation.deadLetterTopic());
             }
-
             clientBuilder.deadLetterPolicy(deadLetterBuilder.build());
         }
     }
@@ -210,16 +210,15 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
     /**
      * 订阅
      *
-     * @param name         类名称
      * @param consumerBean 订阅消息对象
      */
-    private void subscribeSingle(String name, ConsumerBeanSingle consumerBean) {
+    private void subscribeSingle(ConsumerBeanSingle consumerBean) {
 
 
         final ConsumerBuilder<?> clientBuilder = pulsarClient
                 .newConsumer(SchemaUtils.getSchema(consumerBean.getGenericType()))
-                .consumerName("consumer-" + name)
-                .subscriptionName("subscription-" + name)
+                .consumerName(consumerBean.getConsumerName())
+                .subscriptionName(consumerBean.getSubscriptionName())
                 .subscriptionType(consumerBean.getHandler().subscriptionType())
                 .subscriptionMode(consumerBean.getHandler().subscriptionMode())
                 .messageListener((consumer, message) -> {
