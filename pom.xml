@@ -15,7 +15,7 @@
     </parent>
     <groupId>com.seelyn</groupId>
     <artifactId>tdmq-spring-boot-starter-parent</artifactId>
-    <version>1.0.7</version>
+    <version>1.0.8</version>
     <name>tdmq-spring-boot-starter-parent</name>
     <description>tdmq</description>
     <properties>

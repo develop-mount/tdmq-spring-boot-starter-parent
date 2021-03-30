@@ -198,11 +198,14 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
 
         Assert.notEmpty(handler.topics(), "@TdmqTopic 必须设置");
         for (TdmqTopic tdmqTopic : handler.topics()) {
-            if (StringUtils.hasLength(tdmqTopic.topic()) && StringUtils.hasLength(tdmqTopic.tags())) {
-                clientBuilder.topicByTag(stringValueResolver.resolveStringValue(tdmqTopic.topic()),
-                        stringValueResolver.resolveStringValue(tdmqTopic.tags()));
+
+            String topic = StringUtils.hasLength(tdmqTopic.topic()) ? stringValueResolver.resolveStringValue(tdmqTopic.topic()) : "";
+            String tags = StringUtils.hasLength(tdmqTopic.tags()) ? stringValueResolver.resolveStringValue(tdmqTopic.tags()) : "";
+
+            if (StringUtils.hasLength(topic) && StringUtils.hasLength(tags)) {
+                clientBuilder.topicByTag(topic, tags);
             } else if (StringUtils.hasLength(tdmqTopic.topic())) {
-                clientBuilder.topic(stringValueResolver.resolveStringValue(tdmqTopic.topic()));
+                clientBuilder.topic(topic);
             }
         }
     }
