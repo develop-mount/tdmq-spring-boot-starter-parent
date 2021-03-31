@@ -21,13 +21,11 @@ public abstract class ConsumerBean {
      * @return 消费者名称
      */
     public String getConsumerName() {
-        String consumerName;
         if (StringUtils.hasLength(handler.consumerName())) {
-            consumerName = CONSUMER_NAME_PREFIX + handler.consumerName();
+            return CONSUMER_NAME_PREFIX + handler.consumerName();
         } else {
-            consumerName = CONSUMER_NAME_PREFIX + name;
+            return null;
         }
-        return consumerName;
     }
 
     /**

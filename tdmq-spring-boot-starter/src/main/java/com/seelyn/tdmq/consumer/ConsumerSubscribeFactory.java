@@ -147,10 +147,13 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
 
         final ConsumerBuilder<?> clientBuilder = pulsarClient
                 .newConsumer(SchemaUtils.getSchema(consumerBean.getGenericType()))
-                .consumerName(consumerBean.getConsumerName())
                 .subscriptionName(consumerBean.getSubscriptionName())
                 .subscriptionType(consumerBean.getHandler().subscriptionType())
                 .subscriptionMode(consumerBean.getHandler().subscriptionMode());
+
+        if (StringUtils.hasLength(consumerBean.getConsumerName())) {
+            clientBuilder.consumerName(consumerBean.getConsumerName());
+        }
 
         // 设置topic和tags
         topicAndTags(clientBuilder, consumerBean.getHandler());
@@ -220,7 +223,6 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
 
         final ConsumerBuilder<?> clientBuilder = pulsarClient
                 .newConsumer(SchemaUtils.getSchema(consumerBean.getGenericType()))
-                .consumerName(consumerBean.getConsumerName())
                 .subscriptionName(consumerBean.getSubscriptionName())
                 .subscriptionType(consumerBean.getHandler().subscriptionType())
                 .subscriptionMode(consumerBean.getHandler().subscriptionMode())
@@ -236,6 +238,10 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
                         LOGGER.error(e.getLocalizedMessage(), e);
                     }
                 });
+
+        if (StringUtils.hasLength(consumerBean.getConsumerName())) {
+            clientBuilder.consumerName(consumerBean.getConsumerName());
+        }
 
         // 设置topic和tags
         topicAndTags(clientBuilder, consumerBean.getHandler());

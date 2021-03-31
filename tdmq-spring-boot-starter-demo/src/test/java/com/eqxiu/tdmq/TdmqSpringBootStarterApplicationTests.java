@@ -23,26 +23,23 @@ public class TdmqSpringBootStarterApplicationTests {
                 .authentication(AuthenticationFactory.token("eyJrZXlJZCI6InB1bHNhci1tOTMyNTN3cTI3IiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiJzY3MifQ.a7z7SJW8AYH1z6908Jv1OTNlGAG0rvYjbOj_W03bcPY"))
                 .build();
 
-        Producer<Demo> producer = pulsarClient.newProducer(Schema.JSON(Demo.class))
+        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
                 .producerName("producer")
-                .topic("persistent://pulsar-m93253wq27/eqx-scs-test/demo")
+                .topic("persistent://pulsar-m93253wq27/eqx-scs-test/test1")
                 .create();
 
-        Demo demo = new Demo("test", "linfs");
-        demo.setContent(Lists.newArrayList("test1","test2"));
+        producer1.newMessage().value("test11").send();
 
-        producer.newMessage().value(demo).tags("demo1").send();
-
-//        for (int k=1; k <= 12; k++) {
-//            for (int i = 0; i < 50; i++) {
-//                String ss = "hello" + i;
-//                producer.newMessage().value(ss).tags("test"+k).send();
-//            }
-//        }
+        for (int k=1; k <= 12; k++) {
+            for (int i = 0; i < 50; i++) {
+                String ss = "hello" + i;
+                producer1.newMessage().value(ss).send();
+            }
+        }
 
 //
 //        listBaseBytesTemplate
-//                .createMessageOfList("persistent://pulsar-m93253wq27/eqx-scs/test", testList)
+//                .createMessageOfList("persistent://pulsar-m93253wq27/eqx-scs-test/test1", testList)
 //                .tags("test").send();
 //
 //        Producer<byte[]> producerDemo = pulsarClient.newProducer(Schema.BYTES)
