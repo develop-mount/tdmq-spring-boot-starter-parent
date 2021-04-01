@@ -14,14 +14,20 @@ import org.springframework.stereotype.Component;
  * @author linfeng
  */
 @Component
-@TdmqHandler(topics = {
-        @TdmqTopic(topic = "${eqxiu.scs.mns.topics.content-todo-2.topic}"),
-        @TdmqTopic(topic = "${eqxiu.scs.mns.topics.content-todo-3.topic}")
+@TdmqHandler(maxNumMessages = 1, topics = {
+        @TdmqTopic(topic = "${eqxiu.scs.mns.topics.content-todo-2.topic}")
 })
-public class DemoHandler2 implements TdmqListener<String> {
+public class DemoHandler2 implements BatchTdmqListener<String> {
+
 
     @Override
-    public void received(Consumer<String> consumer, Message<String> message) throws MessageRedeliverException {
-        System.out.println("DemoHandler2:" + message.getValue());
+    public void received(Consumer<String> consumer, Messages<String> messages) throws MessageRedeliverException {
+        System.out.println("DemoHandler2:" + messages.size());
+        System.out.println("thread:" + Thread.currentThread().getName());
+        try {
+            Thread.sleep(2000L);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }

@@ -30,11 +30,9 @@ public class TdmqSpringBootStarterApplicationTests {
 
         producer1.newMessage().value("test11").send();
 
-        for (int k=1; k <= 12; k++) {
-            for (int i = 0; i < 50; i++) {
-                String ss = "hello" + i;
-                producer1.newMessage().value(ss).send();
-            }
+        while (true) {
+            String ss = "hello";
+            producer1.newMessage().value(ss).send();
         }
 
 //

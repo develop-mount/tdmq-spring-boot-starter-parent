@@ -1,5 +1,6 @@
 package com.seelyn.tdmq.consumer;
 
+import com.google.common.collect.Lists;
 import com.seelyn.tdmq.TdmqProperties;
 import com.seelyn.tdmq.annotation.TdmqHandler;
 import com.seelyn.tdmq.annotation.TdmqTopic;
@@ -8,7 +9,6 @@ import com.seelyn.tdmq.exception.MessageRedeliverException;
 import com.seelyn.tdmq.utils.ExecutorUtils;
 import com.seelyn.tdmq.utils.SchemaUtils;
 import org.apache.pulsar.client.api.*;
-import org.apache.pulsar.shade.com.google.common.collect.Queues;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -18,9 +18,10 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.util.StringValueResolver;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
@@ -32,12 +33,10 @@ import java.util.concurrent.ExecutorService;
 public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, SmartInitializingSingleton {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerSubscribeFactory.class);
-    private static final String CONSUMER_NAME_PREFIX = "consumer-";
-    private static final String SUBSCRIPTION_NAME_PREFIX = "subscription-";
     private final PulsarClient pulsarClient;
     private final ConsumerBeanCollection consumerBeanCollection;
+    private final int batchThreads;
 
-    private int batchThreads;
     private StringValueResolver stringValueResolver;
 
     public ConsumerSubscribeFactory(PulsarClient pulsarClient,
@@ -45,7 +44,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
                                     TdmqProperties tdmqProperties) {
         this.pulsarClient = pulsarClient;
         this.consumerBeanCollection = consumerBeanCollection;
-        this.batchThreads = tdmqProperties.getBatchThreads();
+        this.batchThreads = tdmqProperties.getBatchThreads() <= 0 ? 1 : tdmqProperties.getBatchThreads();
     }
 
     @Override
@@ -66,9 +65,12 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
         //  初始化多消息订阅
         if (!CollectionUtils.isEmpty(consumerBeanCollection.getBatchMessageConsumer())) {
 
-            ConcurrentLinkedQueue<ConsumerBean> concurrentLinkedQueue = Queues.newConcurrentLinkedQueue();
-            for (Map.Entry<String, ConsumerBeanBatch> entry : consumerBeanCollection.getBatchMessageConsumer().entrySet()) {
-                concurrentLinkedQueue.add(subscribeBatch(entry.getValue()));
+            ConcurrentMap<String, ConsumerBeanBatch> batchConcurrentMap = consumerBeanCollection.getBatchMessageConsumer();
+            List<ConsumerBean> concurrentLinkedQueue = Lists.newArrayListWithCapacity(batchConcurrentMap.size());
+            int index = 1;
+            for (Map.Entry<String, ConsumerBeanBatch> entry : batchConcurrentMap.entrySet()) {
+                concurrentLinkedQueue.add(subscribeBatch(entry.getValue(), String.valueOf(index)));
+                index++;
             }
             //批量消息
             batchConsumerListener(concurrentLinkedQueue);
@@ -79,60 +81,48 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
     /**
      * 批量获取消息
      */
-    private void batchConsumerListener(ConcurrentLinkedQueue<ConsumerBean> batchConsumers) {
+    private void batchConsumerListener(List<ConsumerBean> batchConsumers) {
 
         if (CollectionUtils.isEmpty(batchConsumers)) {
             return;
         }
 
-        if (batchThreads <= 0) {
-            batchThreads = batchConsumers.size();
-        }
+        for (ConsumerBean consumerBean : batchConsumers) {
+            for (int n = 0; n < batchThreads; n++) {
+                consumerBean.executorService.submit(() -> {
 
-        ExecutorService executorServiceBatch = ExecutorUtils.newFixedThreadPool(batchThreads);
+                    while (!Thread.currentThread().isInterrupted()) {
 
-        for (int i = 0; i < batchThreads; i++) {
+                        Consumer<?> consumer = consumerBean.consumer;
+                        ConsumerBeanBatch batchBean = consumerBean.batchBean;
 
-            executorServiceBatch.submit(() -> {
-
-                while (!Thread.currentThread().isInterrupted()) {
-
-                    ConsumerBean consumerBean = batchConsumers.poll();
-                    if (consumerBean == null) {
-                        continue;
-                    }
-                    // 再次添加回队尾，多线程可同时获取相同对象，做多线程处理
-                    batchConsumers.add(consumerBean);
-
-                    Consumer<?> consumer = consumerBean.consumer;
-                    ConsumerBeanBatch batchBean = consumerBean.batchBean;
-
-                    CompletableFuture<? extends Messages<?>> completableFuture = consumer.batchReceiveAsync();
-                    Messages<?> messages = null;
-                    try {
-                        messages = completableFuture.get();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        LOGGER.error(e.getLocalizedMessage(), e);
-                    } catch (ExecutionException e) {
-                        LOGGER.error(e.getLocalizedMessage(), e);
-                    }
-
-                    if (messages != null && messages.size() > 0) {
+                        CompletableFuture<? extends Messages<?>> completableFuture = consumer.batchReceiveAsync();
+                        Messages<?> messages = null;
                         try {
-                            //noinspection unchecked
-                            batchBean.getListener().received(consumer, messages);
-                            //消息ACK
-                            consumer.acknowledge(messages);
-                        } catch (MessageRedeliverException e) {
-                            consumer.negativeAcknowledge(messages);
-                        } catch (Exception e) {
+                            messages = completableFuture.get();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            LOGGER.error(e.getLocalizedMessage(), e);
+                        } catch (ExecutionException e) {
                             LOGGER.error(e.getLocalizedMessage(), e);
                         }
-                    }
 
-                }
-            });
+                        if (messages != null && messages.size() > 0) {
+                            try {
+                                //noinspection unchecked
+                                batchBean.getListener().received(consumer, messages);
+                                //消息ACK
+                                consumer.acknowledge(messages);
+                            } catch (MessageRedeliverException e) {
+                                consumer.negativeAcknowledge(messages);
+                            } catch (Exception e) {
+                                LOGGER.error(e.getLocalizedMessage(), e);
+                            }
+                        }
+
+                    }
+                });
+            }
         }
 
     }
@@ -143,7 +133,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      * @param consumerBean 订阅关系对象
      * @return 订阅关系
      */
-    private ConsumerBean subscribeBatch(ConsumerBeanBatch consumerBean) {
+    private ConsumerBean subscribeBatch(ConsumerBeanBatch consumerBean, String name) {
 
         final ConsumerBuilder<?> clientBuilder = pulsarClient
                 .newConsumer(SchemaUtils.getSchema(consumerBean.getGenericType()))
@@ -167,7 +157,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
         setDeadLetterPolicy(clientBuilder, consumerBean.getHandler());
 
         try {
-            return new ConsumerBean(clientBuilder.subscribe(), consumerBean);
+            return new ConsumerBean(clientBuilder.subscribe(), consumerBean, ExecutorUtils.newFixedThreadPool(batchThreads, name));
         } catch (PulsarClientException e) {
             throw new ConsumerInitException(e.getLocalizedMessage(), e);
         }
@@ -259,10 +249,14 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
     static class ConsumerBean {
         Consumer<?> consumer;
         ConsumerBeanBatch batchBean;
+        ExecutorService executorService;
 
-        ConsumerBean(Consumer<?> consumer, ConsumerBeanBatch batchBean) {
+        public ConsumerBean(Consumer<?> consumer,
+                            ConsumerBeanBatch batchBean,
+                            ExecutorService executorService) {
             this.consumer = consumer;
             this.batchBean = batchBean;
+            this.executorService = executorService;
         }
     }
 
