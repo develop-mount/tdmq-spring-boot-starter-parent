@@ -1,7 +1,7 @@
 package com.seelyn.tdmq;
 
-import com.seelyn.tdmq.consumer.ConsumerBeanCollection;
-import com.seelyn.tdmq.consumer.ConsumerBeanPostProcessor;
+import com.seelyn.tdmq.consumer.ConsumerListenerMap;
+import com.seelyn.tdmq.consumer.ConsumerListenerPostProcessor;
 import com.seelyn.tdmq.consumer.ConsumerSubscribeFactory;
 import com.seelyn.tdmq.producer.ListTdmqTemplate;
 import com.seelyn.tdmq.producer.ObjectTdmqTemplate;
@@ -52,17 +52,17 @@ public class TdmqAutoConfiguration {
     }
 
     @Bean("consumerMethodPostProcessor")
-    public ConsumerBeanPostProcessor consumerMethodPostProcessor() {
-        return new ConsumerBeanPostProcessor();
+    public ConsumerListenerPostProcessor consumerMethodPostProcessor() {
+        return new ConsumerListenerPostProcessor();
     }
 
     @Bean
     @DependsOn({"pulsarClient", "consumerMethodPostProcessor"})
     public ConsumerSubscribeFactory consumerSubscribeFactory(PulsarClient pulsarClient,
-                                                             ConsumerBeanCollection consumerBeanCollection,
+                                                             ConsumerListenerMap consumerListenerMap,
                                                              TdmqProperties tdmqProperties) {
 
-        return new ConsumerSubscribeFactory(pulsarClient, consumerBeanCollection, tdmqProperties);
+        return new ConsumerSubscribeFactory(pulsarClient, consumerListenerMap, tdmqProperties);
     }
 
     @Bean

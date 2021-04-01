@@ -13,15 +13,15 @@ public class TdmqProperties {
     private String serviceUrl = "pulsar://localhost:6650";
     private String listenerName;
     private String authenticationToken;
-    private Integer ioThreads = 10;
-    private Integer listenerThreads = 10;
+    private Integer ioThreads = 1;
+    private Integer listenerThreads = 1;
     private Boolean enableTcpNoDelay = false;
     private Integer keepAliveIntervalSec = 20;
     private Integer connectionTimeoutSec = 10;
     private Integer operationTimeoutSec = 15;
     private Integer startingBackoffIntervalMs = 100;
     private Integer maxBackoffIntervalSec = 10;
-    private Integer batchThreads = -1;
+    private Integer concurrentThreads = -1;
 
     public String getServiceUrl() {
         return serviceUrl;
@@ -115,11 +115,11 @@ public class TdmqProperties {
         return enableTcpNoDelay;
     }
 
-    public Integer getBatchThreads() {
-        return batchThreads;
+    public Integer getConcurrentThreads() {
+        return concurrentThreads;
     }
 
-    public void setBatchThreads(Integer batchThreads) {
-        this.batchThreads = batchThreads;
+    public void setConcurrentThreads(Integer concurrentThreads) {
+        this.concurrentThreads = concurrentThreads;
     }
 }

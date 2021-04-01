@@ -12,16 +12,18 @@ import org.springframework.core.Ordered;
 import org.springframework.core.ResolvableType;
 import org.springframework.core.annotation.AnnotationUtils;
 
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
+ * 订阅listener
+ *
  * @author linfeng
  */
-public class ConsumerBeanPostProcessor implements ConsumerBeanCollection, BeanPostProcessor, Ordered {
+public class ConsumerListenerPostProcessor implements ConsumerListenerMap, BeanPostProcessor, Ordered {
 
-    private final ConcurrentMap<String, ConsumerBeanSingle> singleMessageConcurrentMap = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, ConsumerBeanBatch> batchMessageConcurrentMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ConsumerListener> concurrentMap = new ConcurrentHashMap<>();
 
     @Override
     public int getOrder() {
@@ -47,15 +49,9 @@ public class ConsumerBeanPostProcessor implements ConsumerBeanCollection, BeanPo
                         resolveInterface.getName()));
             }
 
-            if (bean instanceof TdmqListener) {
+            concurrentMap.putIfAbsent(targetClass.getName(),
+                    new ConsumerListener(targetClass.getName(), bean, tdmqHandler, resolveInterface));
 
-                singleMessageConcurrentMap.putIfAbsent(targetClass.getName(),
-                        new ConsumerBeanSingle(targetClass.getName(), tdmqHandler, (TdmqListener<?>) bean, resolveInterface));
-            } else {
-
-                batchMessageConcurrentMap.putIfAbsent(targetClass.getName(),
-                        new ConsumerBeanBatch(targetClass.getName(), tdmqHandler, (BatchTdmqListener<?>) bean, resolveInterface));
-            }
         } else {
 
             throw new IllegalStateException(String.format(
@@ -66,6 +62,12 @@ public class ConsumerBeanPostProcessor implements ConsumerBeanCollection, BeanPo
         return bean;
     }
 
+    /**
+     * 获得泛型类型
+     *
+     * @param targetClass 目标类
+     * @return 泛型类型
+     */
     private Class<?> getResolvableClass(Class<?> targetClass) {
         ResolvableType resolvableType = ResolvableType.forClass(targetClass);
         if (resolvableType.getInterfaces().length <= 0) {
@@ -76,12 +78,8 @@ public class ConsumerBeanPostProcessor implements ConsumerBeanCollection, BeanPo
     }
 
     @Override
-    public ConcurrentMap<String, ConsumerBeanSingle> getSingleMessageConsumer() {
-        return singleMessageConcurrentMap;
+    public Map<String, ConsumerListener> getMap() {
+        return concurrentMap;
     }
 
-    @Override
-    public ConcurrentMap<String, ConsumerBeanBatch> getBatchMessageConsumer() {
-        return batchMessageConcurrentMap;
-    }
 }
