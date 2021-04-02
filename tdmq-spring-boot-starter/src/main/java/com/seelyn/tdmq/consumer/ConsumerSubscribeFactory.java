@@ -34,13 +34,13 @@ import java.util.concurrent.ExecutorService;
 public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, SmartInitializingSingleton {
 
     private final PulsarClient pulsarClient;
-    private final ConsumerListenerMap consumerListenerMap;
+    private final ConsumerMetadataMap consumerListenerMap;
     private final int concurrentThreads;
 
     private StringValueResolver stringValueResolver;
 
     public ConsumerSubscribeFactory(PulsarClient pulsarClient,
-                                    ConsumerListenerMap consumerListenerMap,
+                                    ConsumerMetadataMap consumerListenerMap,
                                     TdmqProperties tdmqProperties) {
         this.pulsarClient = pulsarClient;
         this.consumerListenerMap = consumerListenerMap;
@@ -58,11 +58,11 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
         //  初始化单消息订阅
         if (!CollectionUtils.isEmpty(consumerListenerMap.getMap())) {
 
-            Map<String, ConsumerListener> listenerMap = consumerListenerMap.getMap();
+            Map<String, ConsumerMetadata> listenerMap = consumerListenerMap.getMap();
 
             List<SubscribeConsumerExecutor> consumerExecutors = Lists.newArrayListWithCapacity(listenerMap.size());
             int index = 1;
-            for (Map.Entry<String, ConsumerListener> entry : listenerMap.entrySet()) {
+            for (Map.Entry<String, ConsumerMetadata> entry : listenerMap.entrySet()) {
                 consumerExecutors.add(subscribe(entry.getValue(), index));
                 index++;
             }
@@ -112,7 +112,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      * @param index            线程名称下标
      * @return 订阅关系
      */
-    private SubscribeConsumerExecutor subscribe(ConsumerListener consumerListener, int index) {
+    private SubscribeConsumerExecutor subscribe(ConsumerMetadata consumerListener, int index) {
 
         final String threadName = consumerListener.isSingle() ? "s-" + index : "b-" + index;
         final ConsumerBuilder<?> clientBuilder = initConsumerBuilder(consumerListener);
@@ -132,7 +132,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      * @param consumerListener 订阅者信息
      * @return 订阅者构造器
      */
-    private ConsumerBuilder<?> initConsumerBuilder(ConsumerListener consumerListener) {
+    private ConsumerBuilder<?> initConsumerBuilder(ConsumerMetadata consumerListener) {
 
         final ConsumerBuilder<?> clientBuilder = pulsarClient
                 .newConsumer(SchemaUtils.getSchema(consumerListener.getGenericType()))
@@ -204,11 +204,11 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      */
     static class SubscribeConsumerExecutor {
         Consumer<?> consumer;
-        ConsumerListener consumerListener;
+        ConsumerMetadata consumerListener;
         ExecutorService executorService;
 
         SubscribeConsumerExecutor(Consumer<?> consumer,
-                                  ConsumerListener consumerListener,
+                                  ConsumerMetadata consumerListener,
                                   ExecutorService executorService) {
             this.consumer = consumer;
             this.consumerListener = consumerListener;

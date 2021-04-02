@@ -21,9 +21,9 @@ import java.util.concurrent.ConcurrentMap;
  *
  * @author linfeng
  */
-public class ConsumerListenerPostProcessor implements ConsumerListenerMap, BeanPostProcessor, Ordered {
+public class ConsumerMetadataPostProcessor implements ConsumerMetadataMap, BeanPostProcessor, Ordered {
 
-    private final ConcurrentMap<String, ConsumerListener> concurrentMap = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, ConsumerMetadata> concurrentMap = new ConcurrentHashMap<>();
 
     @Override
     public int getOrder() {
@@ -50,7 +50,7 @@ public class ConsumerListenerPostProcessor implements ConsumerListenerMap, BeanP
             }
 
             concurrentMap.putIfAbsent(targetClass.getName(),
-                    new ConsumerListener(targetClass.getName(), bean, tdmqHandler, resolveInterface));
+                    new ConsumerMetadata(targetClass.getName(), bean, tdmqHandler, resolveInterface));
 
         } else {
 
@@ -78,7 +78,7 @@ public class ConsumerListenerPostProcessor implements ConsumerListenerMap, BeanP
     }
 
     @Override
-    public Map<String, ConsumerListener> getMap() {
+    public Map<String, ConsumerMetadata> getMap() {
         return concurrentMap;
     }
 

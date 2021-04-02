@@ -7,7 +7,7 @@ import java.util.Map;
  *
  * @author linfeng
  */
-public interface ConsumerListenerMap {
+public interface ConsumerMetadataMap {
 
 
     /**
@@ -15,5 +15,5 @@ public interface ConsumerListenerMap {
      *
      * @return 订阅者Map
      */
-    Map<String, ConsumerListener> getMap();
+    Map<String, ConsumerMetadata> getMap();
 }

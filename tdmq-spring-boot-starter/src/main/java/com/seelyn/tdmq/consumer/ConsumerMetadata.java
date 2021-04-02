@@ -9,7 +9,7 @@ import org.springframework.util.StringUtils;
  *
  * @author linfeng
  */
-class ConsumerListener {
+class ConsumerMetadata {
 
     private static final String CONSUMER_NAME_PREFIX = "consumer-";
     private static final String SUBSCRIPTION_NAME_PREFIX = "subscription-";
@@ -19,7 +19,7 @@ class ConsumerListener {
     private final TdmqHandler handler;
     private final Class<?> genericType;
 
-    ConsumerListener(String className, Object listener, TdmqHandler handler, Class<?> genericType) {
+    ConsumerMetadata(String className, Object listener, TdmqHandler handler, Class<?> genericType) {
         this.className = className;
         this.listener = listener;
         this.handler = handler;
