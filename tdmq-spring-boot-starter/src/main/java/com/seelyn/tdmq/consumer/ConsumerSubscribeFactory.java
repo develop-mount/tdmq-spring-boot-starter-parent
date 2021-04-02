@@ -13,6 +13,7 @@ import com.seelyn.tdmq.utils.SchemaUtils;
 import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.EmbeddedValueResolverAware;
 import org.springframework.util.Assert;
@@ -25,19 +26,21 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
  * 订阅者，订阅
  *
  * @author linfeng
  */
-public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, SmartInitializingSingleton {
+public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, SmartInitializingSingleton, DisposableBean {
 
     private final PulsarClient pulsarClient;
     private final ConsumerMetadataMap consumerListenerMap;
     private final int concurrentThreads;
 
     private StringValueResolver stringValueResolver;
+    private List<Future<?>> consumerFutures;
 
     public ConsumerSubscribeFactory(PulsarClient pulsarClient,
                                     ConsumerMetadataMap consumerListenerMap,
@@ -82,23 +85,22 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
             return;
         }
 
+        int initialArraySize = consumerExecutors.size() * concurrentThreads;
+        consumerFutures = Lists.newArrayListWithCapacity(initialArraySize);
+
         for (SubscribeConsumerExecutor subscribeExecutor : consumerExecutors) {
 
             ExecutorService executorService = subscribeExecutor.executorService;
             Consumer<?> consumer = subscribeExecutor.consumer;
             if (subscribeExecutor.consumerListener.isSingle()) {
-
                 TdmqListener<?> listener = subscribeExecutor.getListenerHandler();
                 for (int n = 0; n < concurrentThreads; n++) {
-
-                    executorService.submit(new TdmqListenerHandlerThread(listener, consumer));
+                    consumerFutures.add(executorService.submit(new TdmqListenerHandlerThread(listener, consumer)));
                 }
             } else {
-
                 BatchTdmqListener<?> listener = subscribeExecutor.getListenerHandler();
                 for (int n = 0; n < concurrentThreads; n++) {
-
-                    executorService.submit(new BatchTdmqListenerHandlerThread(listener, consumer));
+                    consumerFutures.add(executorService.submit(new BatchTdmqListenerHandlerThread(listener, consumer)));
                 }
             }
         }
@@ -198,6 +200,15 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
         }
     }
 
+    @Override
+    public void destroy() throws Exception {
+        if (CollectionUtils.isEmpty(consumerFutures)) {
+            return;
+        }
+        for (Future<?> future : consumerFutures) {
+            future.cancel(true);
+        }
+    }
 
     /**
      * 订阅关系
