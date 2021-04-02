@@ -82,7 +82,7 @@ mvn help:effective-settings
 <dependency>
   <groupId>com.seelyn</groupId>
   <artifactId>tdmq-spring-boot-starter</artifactId>
-  <version>1.0.4</version>
+  <version>1.1.1</version>
 </dependency>
 ```
 # 添加TDMQ连接配置
@@ -98,9 +98,13 @@ tdmq.connection_timeout_sec=10
 tdmq.operation_timeout_sec=15
 tdmq.starting_backoff_interval_ms=100
 tdmq.max_backoff_interval_sec=10
-tdmq.batch-threads=-1 # 批量接收消息的线程数，-1表示不限制，为订阅数量
+tdmq.concurrent-threads=-1 # 批量接收消息的线程数，-1表示不限制，为订阅数量
 ```
 # 快速开始
+## 接收模型
+不管是单条消息接收还是多条消息批量接收，均采用拉模式。
+可配置tdmq.concurrent-threads=2,采用2个线程来同时拉取消息，例如下面单消息和多消息，分别启动2个线程来执行，也就是一共4个线程
+
 ## 单条消息接收
 ```
 @Component
