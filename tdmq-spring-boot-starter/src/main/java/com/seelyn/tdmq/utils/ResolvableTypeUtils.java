@@ -7,7 +7,13 @@ import java.util.List;
 
 public class ResolvableTypeUtils {
 
-    public static List<Class<?>> getResolvableType(ResolvableType resolvableType){
+    /**
+     * 获取泛型
+     *
+     * @param resolvableType 可分解的类型
+     * @return 类型集合
+     */
+    public static List<Class<?>> getResolvableType(ResolvableType resolvableType) {
         List<Class<?>> classes = new ArrayList<>();
         classes.add(resolvableType.resolve());
         if (resolvableType.hasGenerics()) {

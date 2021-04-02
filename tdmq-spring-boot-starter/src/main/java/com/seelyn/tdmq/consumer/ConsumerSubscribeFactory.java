@@ -61,8 +61,10 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
             Map<String, ConsumerListener> listenerMap = consumerListenerMap.getMap();
 
             List<SubscribeConsumerExecutor> consumerExecutors = Lists.newArrayListWithCapacity(listenerMap.size());
+            int index = 1;
             for (Map.Entry<String, ConsumerListener> entry : listenerMap.entrySet()) {
-                consumerExecutors.add(subscribe(entry.getValue()));
+                consumerExecutors.add(subscribe(entry.getValue(), index));
+                index++;
             }
             executeConsumerListener(consumerExecutors);
         }
@@ -84,16 +86,16 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
 
             ExecutorService executorService = subscribeExecutor.executorService;
             Consumer<?> consumer = subscribeExecutor.consumer;
-            if (subscribeExecutor.listener.isSingle()) {
+            if (subscribeExecutor.consumerListener.isSingle()) {
 
-                TdmqListener listener = subscribeExecutor.getListenerHandler();
+                TdmqListener<?> listener = subscribeExecutor.getListenerHandler();
                 for (int n = 0; n < concurrentThreads; n++) {
 
                     executorService.submit(new TdmqListenerHandlerThread(listener, consumer));
                 }
             } else {
 
-                BatchTdmqListener listener = subscribeExecutor.getListenerHandler();
+                BatchTdmqListener<?> listener = subscribeExecutor.getListenerHandler();
                 for (int n = 0; n < concurrentThreads; n++) {
 
                     executorService.submit(new BatchTdmqListenerHandlerThread(listener, consumer));
@@ -107,11 +109,12 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      * 单独订阅
      *
      * @param consumerListener 订阅关系对象
+     * @param index            线程名称下标
      * @return 订阅关系
      */
-    private SubscribeConsumerExecutor subscribe(ConsumerListener consumerListener) {
+    private SubscribeConsumerExecutor subscribe(ConsumerListener consumerListener, int index) {
 
-        final String threadName = consumerListener.isSingle() ? "s" : "b";
+        final String threadName = consumerListener.isSingle() ? "s-" + index : "b-" + index;
         final ConsumerBuilder<?> clientBuilder = initConsumerBuilder(consumerListener);
 
         try {
@@ -201,21 +204,21 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      */
     static class SubscribeConsumerExecutor {
         Consumer<?> consumer;
-        ConsumerListener listener;
+        ConsumerListener consumerListener;
         ExecutorService executorService;
 
         SubscribeConsumerExecutor(Consumer<?> consumer,
-                                  ConsumerListener listener,
+                                  ConsumerListener consumerListener,
                                   ExecutorService executorService) {
             this.consumer = consumer;
-            this.listener = listener;
+            this.consumerListener = consumerListener;
             this.executorService = executorService;
         }
 
         <T> T getListenerHandler() {
 
             //noinspection unchecked
-            return (T) listener.getListener();
+            return (T) consumerListener.getListener();
         }
 
     }
@@ -225,11 +228,12 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      */
     static class TdmqListenerHandlerThread implements Runnable {
 
-        private static Logger logger = LoggerFactory.getLogger(TdmqListenerHandlerThread.class);
-        private TdmqListener listener;
-        private Consumer<?> consumer;
+        private static final Logger logger = LoggerFactory.getLogger(TdmqListenerHandlerThread.class);
+        @SuppressWarnings("rawtypes")
+        private final TdmqListener listener;
+        private final Consumer<?> consumer;
 
-        TdmqListenerHandlerThread(TdmqListener listener, Consumer<?> consumer) {
+        TdmqListenerHandlerThread(TdmqListener<?> listener, Consumer<?> consumer) {
             this.listener = listener;
             this.consumer = consumer;
         }
@@ -273,11 +277,12 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      */
     static class BatchTdmqListenerHandlerThread implements Runnable {
 
-        private static Logger logger = LoggerFactory.getLogger(TdmqListenerHandlerThread.class);
-        private BatchTdmqListener listener;
-        private Consumer<?> consumer;
+        private static final Logger logger = LoggerFactory.getLogger(TdmqListenerHandlerThread.class);
+        @SuppressWarnings("rawtypes")
+        private final BatchTdmqListener listener;
+        private final Consumer<?> consumer;
 
-        BatchTdmqListenerHandlerThread(BatchTdmqListener listener, Consumer<?> consumer) {
+        BatchTdmqListenerHandlerThread(BatchTdmqListener<?> listener, Consumer<?> consumer) {
             this.listener = listener;
             this.consumer = consumer;
         }

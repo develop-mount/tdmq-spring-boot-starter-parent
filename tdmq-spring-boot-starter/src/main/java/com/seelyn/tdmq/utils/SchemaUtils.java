@@ -29,8 +29,9 @@ public enum SchemaUtils {
     TIME(java.sql.Time.class.getName(), Schema.TIME),
     TIMESTAMP(java.sql.Timestamp.class.getName(), Schema.TIMESTAMP);
 
-    private String className;
-    private Schema schema;
+    private final String className;
+    @SuppressWarnings("rawtypes")
+    private final Schema schema;
 
     /**
      * 构造函数
@@ -38,7 +39,7 @@ public enum SchemaUtils {
      * @param className 类名称
      * @param schema    schema
      */
-    SchemaUtils(String className, Schema schema) {
+    SchemaUtils(String className, @SuppressWarnings("rawtypes") Schema schema) {
         this.className = className;
         this.schema = schema;
     }
@@ -103,7 +104,7 @@ public enum SchemaUtils {
         TIME(java.sql.Time.class),
         TIMESTAMP(java.sql.Timestamp.class);
 
-        private Class<?> clazz;
+        private final Class<?> clazz;
 
         SupportClass(Class<?> clazz) {
             this.clazz = clazz;
@@ -120,7 +121,7 @@ public enum SchemaUtils {
         COLLECTION(Collection.class),
         MAP(Map.class);
 
-        private Class<?> clazz;
+        private final Class<?> clazz;
 
         NotSupportClass(Class<?> clazz) {
             this.clazz = clazz;
