@@ -241,8 +241,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
         @Override
         public void run() {
 
-            while (!Thread.currentThread().isInterrupted()) {
-
+            while (!Thread.currentThread().isInterrupted() && consumer.isConnected()) {
 
                 CompletableFuture<? extends Message<?>> completableFuture = consumer.receiveAsync();
                 Message<?> message = null;
@@ -269,6 +268,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
                 }
 
             }
+            logger.warn("{}线程已结束", Thread.currentThread().getName());
         }
     }
 
@@ -290,8 +290,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
         @Override
         public void run() {
 
-            while (!Thread.currentThread().isInterrupted()) {
-
+            while (!Thread.currentThread().isInterrupted() && consumer.isConnected()) {
 
                 CompletableFuture<? extends Messages<?>> completableFuture = consumer.batchReceiveAsync();
                 Messages<?> messages = null;
@@ -318,6 +317,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
                 }
 
             }
+            logger.warn("{}线程已结束", Thread.currentThread().getName());
         }
     }
 }
