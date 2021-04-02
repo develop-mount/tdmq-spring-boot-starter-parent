@@ -92,7 +92,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
 
             ExecutorService executorService = subscribeExecutor.executorService;
             Consumer<?> consumer = subscribeExecutor.consumer;
-            if (subscribeExecutor.consumerListener.isSingle()) {
+            if (subscribeExecutor.metadata.isSingle()) {
                 TdmqListener<?> listener = subscribeExecutor.getListenerHandler();
                 for (int n = 0; n < concurrentThreads; n++) {
                     consumerFutures.add(executorService.submit(new TdmqListenerHandlerThread(listener, consumer)));
@@ -201,7 +201,7 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
     }
 
     @Override
-    public void destroy() throws Exception {
+    public void destroy() {
         if (CollectionUtils.isEmpty(consumerFutures)) {
             return;
         }
@@ -215,21 +215,21 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      */
     static class SubscribeConsumerExecutor {
         Consumer<?> consumer;
-        ConsumerMetadata consumerListener;
+        ConsumerMetadata metadata;
         ExecutorService executorService;
 
         SubscribeConsumerExecutor(Consumer<?> consumer,
-                                  ConsumerMetadata consumerListener,
+                                  ConsumerMetadata metadata,
                                   ExecutorService executorService) {
             this.consumer = consumer;
-            this.consumerListener = consumerListener;
+            this.metadata = metadata;
             this.executorService = executorService;
         }
 
         <T> T getListenerHandler() {
 
             //noinspection unchecked
-            return (T) consumerListener.getListener();
+            return (T) metadata.getListener();
         }
 
     }
