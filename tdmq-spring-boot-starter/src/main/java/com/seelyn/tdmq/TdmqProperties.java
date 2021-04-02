@@ -15,7 +15,7 @@ public class TdmqProperties {
     private String authenticationToken;
     private Integer ioThreads = 1;
     private Integer listenerThreads = 1;
-    private Boolean enableTcpNoDelay = false;
+    private Boolean enableTcpNoDelay = true;
     private Integer keepAliveIntervalSec = 20;
     private Integer connectionTimeoutSec = 10;
     private Integer operationTimeoutSec = 15;
