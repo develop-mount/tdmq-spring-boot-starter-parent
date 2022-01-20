@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @TdmqHandler(maxNumMessages = 1, topics = {
-        @TdmqTopic(topic = "${eqxiu.scs.mns.topics.content-todo-2.topic}")
+        @TdmqTopic(topic = "${eqxiu.scs.mns.topics.content-todo-2.topic}", tags = "tag1")
 })
 public class DemoHandler2 implements TdmqListener<String> {
 

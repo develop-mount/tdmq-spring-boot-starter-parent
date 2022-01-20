@@ -28,12 +28,11 @@ public class TdmqSpringBootStarterApplicationTests {
                 .topic("persistent://pulsar-m93253wq27/eqx-scs-test/test1")
                 .create();
 
-        producer1.newMessage().value("test11").send();
-
-        while (true) {
-            String ss = "hello";
-            producer1.newMessage().value(ss).send();
+        for (int i=0; i< 50; i++) {
+            String ss = "test2_" + i;
+            producer1.newMessage().property("tag2", "test2").value(ss).send();
         }
+        producer1.newMessage().property("tag1", "test1").value("test11").send();
 
 //
 //        listBaseBytesTemplate

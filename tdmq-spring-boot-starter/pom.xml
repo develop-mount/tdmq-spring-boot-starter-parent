@@ -5,7 +5,7 @@
     <parent>
         <artifactId>tdmq-spring-boot-starter-parent</artifactId>
         <groupId>com.seelyn</groupId>
-        <version>1.1.1</version>
+        <version>1.2.0</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -22,15 +22,10 @@
             <optional>true</optional>
         </dependency>
         <dependency>
-            <groupId>com.tencent.tdmq</groupId>
-            <artifactId>tdmq-client</artifactId>
-            <version>${tdmq.version}</version>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>pulsar-client</artifactId>
+            <version>${pulsar.version}</version>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.apache.pulsar</groupId>-->
-<!--            <artifactId>pulsar-client</artifactId>-->
-<!--            <version>${pulsar.version}</version>-->
-<!--        </dependency>-->
     </dependencies>
 
     <build>

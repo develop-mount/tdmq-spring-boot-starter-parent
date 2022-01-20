@@ -17,7 +17,7 @@ public @interface TdmqTopic {
     String topic();
 
     /**
-     * eg. tag1 || tag2
+     * eg. tag1,tag2
      *
      * @return tags
      */
