@@ -73,12 +73,12 @@
             </activation>
             <distributionManagement>
                 <repository>
-                    <id>Project Releases</id>
+                    <id>releases</id>
                     <name>Project Releases</name>
                     <url>http://nexus.yqxiu.cn/content/repositories/thirdparty/</url>
                 </repository>
                 <snapshotRepository>
-                    <id>Project Snapshots</id>
+                    <id>snapshots</id>
                     <name>Project Snapshots</name>
                     <url>http://nexus.yqxiu.cn/content/repositories/thirdparty/</url>
                 </snapshotRepository>
