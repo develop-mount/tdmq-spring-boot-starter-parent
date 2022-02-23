@@ -9,7 +9,6 @@ import com.seelyn.tdmq.exception.ConsumerInitException;
 import com.seelyn.tdmq.exception.MessageRedeliverException;
 import com.seelyn.tdmq.utils.ExecutorUtils;
 import com.seelyn.tdmq.utils.SchemaUtils;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -23,7 +22,6 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.shade.com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -157,7 +155,7 @@ public class ConsumerSubscribeFactory
         }
 
         // 设置topic和tags
-        setTopicAndTags(clientBuilder, consumerListener.getHandler());
+        setTopic(clientBuilder, consumerListener.getHandler());
         // 设置
         setDeadLetterPolicy(clientBuilder, consumerListener.getHandler());
 
@@ -196,39 +194,20 @@ public class ConsumerSubscribeFactory
      * @param clientBuilder 订阅构造器
      * @param handler       TDMQ处理注解
      */
-    private void setTopicAndTags(ConsumerBuilder<?> clientBuilder, TdmqHandler handler) {
+    private void setTopic(ConsumerBuilder<?> clientBuilder, TdmqHandler handler) {
 
         Assert.notEmpty(handler.topics(), "@TdmqTopic 必须设置");
         for (TdmqTopic tdmqTopic : handler.topics()) {
-
             String topic = StringUtils.hasLength(tdmqTopic.topic()) ?
                 stringValueResolver.resolveStringValue(tdmqTopic.topic()) : "";
 
-
-            String tags = StringUtils.hasLength(tdmqTopic.tags()) ?
-                stringValueResolver.resolveStringValue(tdmqTopic.tags()) : "";
-
-
-            if (StringUtils.hasLength(topic) && StringUtils.hasLength(tags)) {
+            if (StringUtils.hasLength(topic)) {
                 clientBuilder.topic(topic);
-
-                Map<String, String> subProperties = new HashMap<>();
-                String[] tagArray = tags.split(",");
-                for (int i = 0; i < tagArray.length; i++) {
-                    if (StringUtils.hasLength(tagArray[i])) {
-                        subProperties.put("tag" + (i + 1), tagArray[i]);
-                    }
-                }
-                if (!CollectionUtils.isEmpty(subProperties)) {
-                    clientBuilder.properties(subProperties);
-                    clientBuilder.subscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
-                }
-            } else if (StringUtils.hasLength(tdmqTopic.topic())) {
-                clientBuilder.topic(topic);
+            } else {
+                throw new IllegalArgumentException("@TdmqTopic 中 topic不能为空");
             }
         }
     }
-
 
     /**
      * 订阅关系
