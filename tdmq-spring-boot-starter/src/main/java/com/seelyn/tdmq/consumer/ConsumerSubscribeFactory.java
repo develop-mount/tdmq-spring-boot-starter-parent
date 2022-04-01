@@ -252,7 +252,11 @@ public class ConsumerSubscribeFactory
         @Override
         public void run() {
 
-            while (!Thread.currentThread().isInterrupted() && consumer.isConnected()) {
+            while (!Thread.currentThread().isInterrupted()) {
+
+                if (!consumer.isConnected()) {
+                    continue;
+                }
 
                 CompletableFuture<? extends Message<?>> completableFuture = consumer.receiveAsync();
                 Message<?> message = null;
@@ -302,8 +306,11 @@ public class ConsumerSubscribeFactory
         @Override
         public void run() {
 
-            while (!Thread.currentThread().isInterrupted() && consumer.isConnected()) {
+            while (!Thread.currentThread().isInterrupted()) {
 
+                if (!consumer.isConnected()) {
+                    continue;
+                }
                 CompletableFuture<? extends Messages<?>> completableFuture =
                     consumer.batchReceiveAsync();
                 Messages<?> messages = null;
