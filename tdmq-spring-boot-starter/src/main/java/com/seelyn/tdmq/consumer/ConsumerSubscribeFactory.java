@@ -1,6 +1,5 @@
 package com.seelyn.tdmq.consumer;
 
-import com.google.common.collect.Lists;
 import com.seelyn.tdmq.BatchTdmqListener;
 import com.seelyn.tdmq.TdmqListener;
 import com.seelyn.tdmq.TdmqProperties;
@@ -10,10 +9,22 @@ import com.seelyn.tdmq.exception.ConsumerInitException;
 import com.seelyn.tdmq.exception.MessageRedeliverException;
 import com.seelyn.tdmq.utils.ExecutorUtils;
 import com.seelyn.tdmq.utils.SchemaUtils;
-import org.apache.pulsar.client.api.*;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Messages;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.shade.com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.EmbeddedValueResolverAware;
 import org.springframework.util.Assert;
@@ -21,37 +32,32 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.util.StringValueResolver;
 
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-
 /**
  * 订阅者，订阅
  *
  * @author linfeng
  */
-public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, SmartInitializingSingleton, DisposableBean {
+public class ConsumerSubscribeFactory
+    implements EmbeddedValueResolverAware, SmartInitializingSingleton {
 
     private final PulsarClient pulsarClient;
-    private final ConsumerMetadataMap consumerListenerMap;
+    private final ConsumerListenerMap consumerListenerMap;
     private final int concurrentThreads;
 
     private StringValueResolver stringValueResolver;
-    private List<Future<?>> consumerFutures;
 
     public ConsumerSubscribeFactory(PulsarClient pulsarClient,
-                                    ConsumerMetadataMap consumerListenerMap,
+                                    ConsumerListenerMap consumerListenerMap,
                                     TdmqProperties tdmqProperties) {
         this.pulsarClient = pulsarClient;
         this.consumerListenerMap = consumerListenerMap;
-        this.concurrentThreads = tdmqProperties.getConcurrentThreads() <= 0 ? 1 : tdmqProperties.getConcurrentThreads();
+        this.concurrentThreads =
+            tdmqProperties.getConcurrentThreads() <= 0 ? 1 : tdmqProperties.getConcurrentThreads();
     }
 
     @Override
-    public void setEmbeddedValueResolver(@SuppressWarnings("NullableProblems") StringValueResolver stringValueResolver) {
+    public void setEmbeddedValueResolver(
+        @SuppressWarnings("NullableProblems") StringValueResolver stringValueResolver) {
         this.stringValueResolver = stringValueResolver;
     }
 
@@ -61,11 +67,12 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
         //  初始化单消息订阅
         if (!CollectionUtils.isEmpty(consumerListenerMap.getMap())) {
 
-            Map<String, ConsumerMetadata> listenerMap = consumerListenerMap.getMap();
+            Map<String, ConsumerListener> listenerMap = consumerListenerMap.getMap();
 
-            List<SubscribeConsumerExecutor> consumerExecutors = Lists.newArrayListWithCapacity(listenerMap.size());
+            List<SubscribeConsumerExecutor> consumerExecutors =
+                Lists.newArrayListWithCapacity(listenerMap.size());
             int index = 1;
-            for (Map.Entry<String, ConsumerMetadata> entry : listenerMap.entrySet()) {
+            for (Map.Entry<String, ConsumerListener> entry : listenerMap.entrySet()) {
                 consumerExecutors.add(subscribe(entry.getValue(), index));
                 index++;
             }
@@ -85,22 +92,23 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
             return;
         }
 
-        int initialArraySize = consumerExecutors.size() * concurrentThreads;
-        consumerFutures = Lists.newArrayListWithCapacity(initialArraySize);
-
         for (SubscribeConsumerExecutor subscribeExecutor : consumerExecutors) {
 
             ExecutorService executorService = subscribeExecutor.executorService;
             Consumer<?> consumer = subscribeExecutor.consumer;
-            if (subscribeExecutor.metadata.isSingle()) {
+            if (subscribeExecutor.consumerListener.isSingle()) {
+
                 TdmqListener<?> listener = subscribeExecutor.getListenerHandler();
                 for (int n = 0; n < concurrentThreads; n++) {
-                    consumerFutures.add(executorService.submit(new TdmqListenerHandlerThread(listener, consumer)));
+
+                    executorService.submit(new TdmqListenerHandlerThread(listener, consumer));
                 }
             } else {
+
                 BatchTdmqListener<?> listener = subscribeExecutor.getListenerHandler();
                 for (int n = 0; n < concurrentThreads; n++) {
-                    consumerFutures.add(executorService.submit(new BatchTdmqListenerHandlerThread(listener, consumer)));
+
+                    executorService.submit(new BatchTdmqListenerHandlerThread(listener, consumer));
                 }
             }
         }
@@ -114,14 +122,14 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      * @param index            线程名称下标
      * @return 订阅关系
      */
-    private SubscribeConsumerExecutor subscribe(ConsumerMetadata consumerListener, int index) {
+    private SubscribeConsumerExecutor subscribe(ConsumerListener consumerListener, int index) {
 
         final String threadName = consumerListener.isSingle() ? "s-" + index : "b-" + index;
         final ConsumerBuilder<?> clientBuilder = initConsumerBuilder(consumerListener);
 
         try {
             return new SubscribeConsumerExecutor(clientBuilder.subscribe(), consumerListener,
-                    ExecutorUtils.newFixedThreadPool(concurrentThreads, threadName));
+                ExecutorUtils.newFixedThreadPool(concurrentThreads, threadName));
         } catch (PulsarClientException e) {
             throw new ConsumerInitException(e.getLocalizedMessage(), e);
         }
@@ -134,28 +142,29 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      * @param consumerListener 订阅者信息
      * @return 订阅者构造器
      */
-    private ConsumerBuilder<?> initConsumerBuilder(ConsumerMetadata consumerListener) {
+    private ConsumerBuilder<?> initConsumerBuilder(ConsumerListener consumerListener) {
 
         final ConsumerBuilder<?> clientBuilder = pulsarClient
-                .newConsumer(SchemaUtils.getSchema(consumerListener.getGenericType()))
-                .subscriptionName(consumerListener.getSubscriptionName())
-                .subscriptionType(consumerListener.getHandler().subscriptionType())
-                .subscriptionMode(consumerListener.getHandler().subscriptionMode());
+            .newConsumer(SchemaUtils.getSchema(consumerListener.getGenericType()))
+            .subscriptionName(consumerListener.getSubscriptionName())
+            .subscriptionType(consumerListener.getHandler().subscriptionType())
+            .subscriptionMode(consumerListener.getHandler().subscriptionMode());
 
         if (StringUtils.hasLength(consumerListener.getConsumerName())) {
             clientBuilder.consumerName(consumerListener.getConsumerName());
         }
 
         // 设置topic和tags
-        setTopicAndTags(clientBuilder, consumerListener.getHandler());
+        setTopic(clientBuilder, consumerListener.getHandler());
         // 设置
         setDeadLetterPolicy(clientBuilder, consumerListener.getHandler());
 
         clientBuilder.batchReceivePolicy(BatchReceivePolicy.builder()
-                .maxNumMessages(consumerListener.getHandler().maxNumMessages())
-                .maxNumBytes(consumerListener.getHandler().maxNumBytes())
-                .timeout(consumerListener.getHandler().timeoutMs(), consumerListener.getHandler().timeoutUnit())
-                .build());
+            .maxNumMessages(consumerListener.getHandler().maxNumMessages())
+            .maxNumBytes(consumerListener.getHandler().maxNumBytes())
+            .timeout(consumerListener.getHandler().timeoutMs(),
+                consumerListener.getHandler().timeoutUnit())
+            .build());
         return clientBuilder;
     }
 
@@ -168,7 +177,8 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      */
     private void setDeadLetterPolicy(ConsumerBuilder<?> clientBuilder, TdmqHandler annotation) {
         if (annotation.maxRedeliverCount() >= 0) {
-            final DeadLetterPolicy.DeadLetterPolicyBuilder deadLetterBuilder = DeadLetterPolicy.builder();
+            final DeadLetterPolicy.DeadLetterPolicyBuilder deadLetterBuilder =
+                DeadLetterPolicy.builder();
 
             deadLetterBuilder.maxRedeliverCount(annotation.maxRedeliverCount());
             if (StringUtils.hasLength(annotation.deadLetterTopic())) {
@@ -184,29 +194,18 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      * @param clientBuilder 订阅构造器
      * @param handler       TDMQ处理注解
      */
-    private void setTopicAndTags(ConsumerBuilder<?> clientBuilder, TdmqHandler handler) {
+    private void setTopic(ConsumerBuilder<?> clientBuilder, TdmqHandler handler) {
 
         Assert.notEmpty(handler.topics(), "@TdmqTopic 必须设置");
         for (TdmqTopic tdmqTopic : handler.topics()) {
+            String topic = StringUtils.hasLength(tdmqTopic.topic()) ?
+                stringValueResolver.resolveStringValue(tdmqTopic.topic()) : "";
 
-            String topic = StringUtils.hasLength(tdmqTopic.topic()) ? stringValueResolver.resolveStringValue(tdmqTopic.topic()) : "";
-            String tags = StringUtils.hasLength(tdmqTopic.tags()) ? stringValueResolver.resolveStringValue(tdmqTopic.tags()) : "";
-
-            if (StringUtils.hasLength(topic) && StringUtils.hasLength(tags)) {
-                clientBuilder.topicByTag(topic, tags);
-            } else if (StringUtils.hasLength(tdmqTopic.topic())) {
+            if (StringUtils.hasLength(topic)) {
                 clientBuilder.topic(topic);
+            } else {
+                throw new IllegalArgumentException("@TdmqTopic 中 topic不能为空");
             }
-        }
-    }
-
-    @Override
-    public void destroy() {
-        if (CollectionUtils.isEmpty(consumerFutures)) {
-            return;
-        }
-        for (Future<?> future : consumerFutures) {
-            future.cancel(true);
         }
     }
 
@@ -215,21 +214,21 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      */
     static class SubscribeConsumerExecutor {
         Consumer<?> consumer;
-        ConsumerMetadata metadata;
+        ConsumerListener consumerListener;
         ExecutorService executorService;
 
         SubscribeConsumerExecutor(Consumer<?> consumer,
-                                  ConsumerMetadata metadata,
+                                  ConsumerListener consumerListener,
                                   ExecutorService executorService) {
             this.consumer = consumer;
-            this.metadata = metadata;
+            this.consumerListener = consumerListener;
             this.executorService = executorService;
         }
 
         <T> T getListenerHandler() {
 
             //noinspection unchecked
-            return (T) metadata.getListener();
+            return (T) consumerListener.getListener();
         }
 
     }
@@ -239,7 +238,8 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      */
     static class TdmqListenerHandlerThread implements Runnable {
 
-        private static final Logger logger = LoggerFactory.getLogger(TdmqListenerHandlerThread.class);
+        private static final Logger logger =
+            LoggerFactory.getLogger(TdmqListenerHandlerThread.class);
         @SuppressWarnings("rawtypes")
         private final TdmqListener listener;
         private final Consumer<?> consumer;
@@ -252,7 +252,11 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
         @Override
         public void run() {
 
-            while (!Thread.currentThread().isInterrupted() && consumer.isConnected()) {
+            while (!Thread.currentThread().isInterrupted()) {
+
+                if (!consumer.isConnected()) {
+                    continue;
+                }
 
                 CompletableFuture<? extends Message<?>> completableFuture = consumer.receiveAsync();
                 Message<?> message = null;
@@ -288,7 +292,8 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
      */
     static class BatchTdmqListenerHandlerThread implements Runnable {
 
-        private static final Logger logger = LoggerFactory.getLogger(TdmqListenerHandlerThread.class);
+        private static final Logger logger =
+            LoggerFactory.getLogger(TdmqListenerHandlerThread.class);
         @SuppressWarnings("rawtypes")
         private final BatchTdmqListener listener;
         private final Consumer<?> consumer;
@@ -301,9 +306,13 @@ public class ConsumerSubscribeFactory implements EmbeddedValueResolverAware, Sma
         @Override
         public void run() {
 
-            while (!Thread.currentThread().isInterrupted() && consumer.isConnected()) {
+            while (!Thread.currentThread().isInterrupted()) {
 
-                CompletableFuture<? extends Messages<?>> completableFuture = consumer.batchReceiveAsync();
+                if (!consumer.isConnected()) {
+                    continue;
+                }
+                CompletableFuture<? extends Messages<?>> completableFuture =
+                    consumer.batchReceiveAsync();
                 Messages<?> messages = null;
                 try {
                     messages = completableFuture.get();
