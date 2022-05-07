@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * TDMQ 处理注解
  */
+@Inherited
 @Target({ElementType.TYPE, ElementType.ANNOTATION_TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
@@ -34,7 +35,7 @@ public @interface TdmqHandler {
      *
      * @return 主题注解
      */
-    TdmqTopic[] topics();
+    TdmqTopic[] topics() default @TdmqTopic();
 
     /**
      * 订阅类型

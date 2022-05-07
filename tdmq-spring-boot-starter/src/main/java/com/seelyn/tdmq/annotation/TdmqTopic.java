@@ -14,7 +14,7 @@ public @interface TdmqTopic {
      *
      * @return 主题
      */
-    String topic();
+    String topic() default "";
 
     /**
      * eg. tag1,tag2

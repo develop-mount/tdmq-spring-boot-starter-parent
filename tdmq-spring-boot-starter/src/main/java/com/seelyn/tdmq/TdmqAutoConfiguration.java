@@ -1,10 +1,10 @@
 package com.seelyn.tdmq;
 
-import com.seelyn.tdmq.consumer.*;
-import com.seelyn.tdmq.producer.ListTdmqTemplate;
-import com.seelyn.tdmq.producer.ObjectTdmqTemplate;
-import com.seelyn.tdmq.producer.StringTdmqTemplate;
-import com.seelyn.tdmq.producer.TdmqTemplate;
+import com.seelyn.tdmq.consumer.ConsumerMetadataMap;
+import com.seelyn.tdmq.consumer.ConsumerMetadataPostProcessor;
+import com.seelyn.tdmq.consumer.ConsumerSubscribeFactory;
+import com.seelyn.tdmq.event.BusEvent;
+import com.seelyn.tdmq.producer.*;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -64,10 +64,14 @@ public class TdmqAutoConfiguration {
     }
 
     @Bean
-    public <T> TdmqTemplate<T> tTdmqTemplate(PulsarClient pulsarClient) {
+    public <T> TdmqTemplate<T> tdmqTemplate(PulsarClient pulsarClient) {
         return new TdmqTemplate<>(pulsarClient);
     }
 
+    @Bean
+    public <T extends BusEvent> EventBusPublisher<T> eventBusPublisher(PulsarClient pulsarClient) {
+        return new EventBusPublisher<>(pulsarClient);
+    }
 
     @Bean
     public ListTdmqTemplate listBaseBytesTemplate(PulsarClient pulsarClient) {
