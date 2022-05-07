@@ -41,6 +41,14 @@ public class TdmqTemplate<T> {
         return producer.sendAsync(message);
     }
 
+    public CompletableFuture<Void> flushAsync(String topic) {
+        Producer<T> producer = producers.get(topic);
+        if (producer != null) {
+            return producer.flushAsync();
+        }
+        return null;
+    }
+
     public TypedMessageBuilder<T> createMessage(String topic, T message) {
 
         Producer<T> producer = producers.computeIfAbsent(topic, key -> buildProducer(key, message.getClass()));
