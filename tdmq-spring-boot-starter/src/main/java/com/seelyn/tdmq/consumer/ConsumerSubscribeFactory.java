@@ -41,16 +41,16 @@ public class ConsumerSubscribeFactory
     implements EmbeddedValueResolverAware, SmartInitializingSingleton {
 
     private final PulsarClient pulsarClient;
-    private final ConsumerListenerMap consumerListenerMap;
+    private final ConsumerMetadataMap consumerMetadataMap;
     private final int concurrentThreads;
 
     private StringValueResolver stringValueResolver;
 
     public ConsumerSubscribeFactory(PulsarClient pulsarClient,
-                                    ConsumerListenerMap consumerListenerMap,
+                                    ConsumerMetadataMap consumerMetadataMap,
                                     TdmqProperties tdmqProperties) {
         this.pulsarClient = pulsarClient;
-        this.consumerListenerMap = consumerListenerMap;
+        this.consumerMetadataMap = consumerMetadataMap;
         this.concurrentThreads =
             tdmqProperties.getConcurrentThreads() <= 0 ? 1 : tdmqProperties.getConcurrentThreads();
     }
@@ -65,14 +65,14 @@ public class ConsumerSubscribeFactory
     public void afterSingletonsInstantiated() {
 
         //  初始化单消息订阅
-        if (!CollectionUtils.isEmpty(consumerListenerMap.getMap())) {
+        if (!CollectionUtils.isEmpty(consumerMetadataMap.getMap())) {
 
-            Map<String, ConsumerListener> listenerMap = consumerListenerMap.getMap();
+            Map<String, ConsumerMetadata> listenerMap = consumerMetadataMap.getMap();
 
             List<SubscribeConsumerExecutor> consumerExecutors =
                 Lists.newArrayListWithCapacity(listenerMap.size());
             int index = 1;
-            for (Map.Entry<String, ConsumerListener> entry : listenerMap.entrySet()) {
+            for (Map.Entry<String, ConsumerMetadata> entry : listenerMap.entrySet()) {
                 consumerExecutors.add(subscribe(entry.getValue(), index));
                 index++;
             }
@@ -96,7 +96,7 @@ public class ConsumerSubscribeFactory
 
             ExecutorService executorService = subscribeExecutor.executorService;
             Consumer<?> consumer = subscribeExecutor.consumer;
-            if (subscribeExecutor.consumerListener.isSingle()) {
+            if (subscribeExecutor.consumerMetadata.isSingle()) {
 
                 TdmqListener<?> listener = subscribeExecutor.getListenerHandler();
                 for (int n = 0; n < concurrentThreads; n++) {
@@ -118,17 +118,17 @@ public class ConsumerSubscribeFactory
     /**
      * 单独订阅
      *
-     * @param consumerListener 订阅关系对象
+     * @param consumerMetadata 订阅关系对象
      * @param index            线程名称下标
      * @return 订阅关系
      */
-    private SubscribeConsumerExecutor subscribe(ConsumerListener consumerListener, int index) {
+    private SubscribeConsumerExecutor subscribe(ConsumerMetadata consumerMetadata, int index) {
 
-        final String threadName = consumerListener.isSingle() ? "s-" + index : "b-" + index;
-        final ConsumerBuilder<?> clientBuilder = initConsumerBuilder(consumerListener);
+        final String threadName = consumerMetadata.isSingle() ? "s-" + index : "b-" + index;
+        final ConsumerBuilder<?> clientBuilder = initConsumerBuilder(consumerMetadata);
 
         try {
-            return new SubscribeConsumerExecutor(clientBuilder.subscribe(), consumerListener,
+            return new SubscribeConsumerExecutor(clientBuilder.subscribe(), consumerMetadata,
                 ExecutorUtils.newFixedThreadPool(concurrentThreads, threadName));
         } catch (PulsarClientException e) {
             throw new ConsumerInitException(e.getLocalizedMessage(), e);
@@ -139,31 +139,31 @@ public class ConsumerSubscribeFactory
     /**
      * 初始化订阅者构造器
      *
-     * @param consumerListener 订阅者信息
+     * @param consumerMetadata 订阅者信息
      * @return 订阅者构造器
      */
-    private ConsumerBuilder<?> initConsumerBuilder(ConsumerListener consumerListener) {
+    private ConsumerBuilder<?> initConsumerBuilder(ConsumerMetadata consumerMetadata) {
 
         final ConsumerBuilder<?> clientBuilder = pulsarClient
-            .newConsumer(SchemaUtils.getSchema(consumerListener.getGenericType()))
-            .subscriptionName(consumerListener.getSubscriptionName())
-            .subscriptionType(consumerListener.getHandler().subscriptionType())
-            .subscriptionMode(consumerListener.getHandler().subscriptionMode());
+            .newConsumer(SchemaUtils.getSchema(consumerMetadata.getGenericType()))
+            .subscriptionName(consumerMetadata.getSubscriptionName())
+            .subscriptionType(consumerMetadata.getHandler().subscriptionType())
+            .subscriptionMode(consumerMetadata.getHandler().subscriptionMode());
 
-        if (StringUtils.hasLength(consumerListener.getConsumerName())) {
-            clientBuilder.consumerName(consumerListener.getConsumerName());
+        if (StringUtils.hasLength(consumerMetadata.getConsumerName())) {
+            clientBuilder.consumerName(consumerMetadata.getConsumerName());
         }
 
         // 设置topic和tags
-        setTopic(clientBuilder, consumerListener.getHandler());
+        setTopic(clientBuilder, consumerMetadata.getHandler());
         // 设置
-        setDeadLetterPolicy(clientBuilder, consumerListener.getHandler());
+        setDeadLetterPolicy(clientBuilder, consumerMetadata.getHandler());
 
         clientBuilder.batchReceivePolicy(BatchReceivePolicy.builder()
-            .maxNumMessages(consumerListener.getHandler().maxNumMessages())
-            .maxNumBytes(consumerListener.getHandler().maxNumBytes())
-            .timeout(consumerListener.getHandler().timeoutMs(),
-                consumerListener.getHandler().timeoutUnit())
+            .maxNumMessages(consumerMetadata.getHandler().maxNumMessages())
+            .maxNumBytes(consumerMetadata.getHandler().maxNumBytes())
+            .timeout(consumerMetadata.getHandler().timeoutMs(),
+                consumerMetadata.getHandler().timeoutUnit())
             .build());
         return clientBuilder;
     }
@@ -214,21 +214,21 @@ public class ConsumerSubscribeFactory
      */
     static class SubscribeConsumerExecutor {
         Consumer<?> consumer;
-        ConsumerListener consumerListener;
+        ConsumerMetadata consumerMetadata;
         ExecutorService executorService;
 
         SubscribeConsumerExecutor(Consumer<?> consumer,
-                                  ConsumerListener consumerListener,
+                                  ConsumerMetadata consumerMetadata,
                                   ExecutorService executorService) {
             this.consumer = consumer;
-            this.consumerListener = consumerListener;
+            this.consumerMetadata = consumerMetadata;
             this.executorService = executorService;
         }
 
         <T> T getListenerHandler() {
 
             //noinspection unchecked
-            return (T) consumerListener.getListener();
+            return (T) consumerMetadata.getListener();
         }
 
     }

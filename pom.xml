@@ -4,6 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <packaging>pom</packaging>
     <modules>
+        <module>eventbus-spring-boot-starter</module>
         <module>tdmq-spring-boot-starter</module>
         <module>tdmq-spring-boot-starter-demo</module>
     </modules>
