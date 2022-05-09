@@ -178,10 +178,13 @@ public class DemoBusEventHandler implements EventBusListener<TestBusEvent> {
 ```
      
 ```
-        TestBusEvent event = new TestBusEvent();
-        event.setSource("test21");
+    @Autowired
+    private EventBusPublisher eventBusPublisher;
+        
+    TestBusEvent event = new TestBusEvent();
+    event.setSource("test21");
 
-        eventBusPublisher.publishEvent("persistent://pulsar-m93253wq27/eqx-scs-test/demo2", event);
+    eventBusPublisher.publishEvent("persistent://pulsar-m93253wq27/eqx-scs-test/demo2", event);
 ```
      
 ## 发送消息
