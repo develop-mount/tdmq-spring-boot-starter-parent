@@ -104,7 +104,7 @@ tdmq.batch-threads=-1 # 批量接收消息的线程数，-1表示不限制，为
 ## 单条消息接收
 ```
 @Component
-@TdmqHandler(topics = {@TdmqTopic(topic = "topic", tags = "test")})
+@TdmqHandler(topics = {@TdmqTopic(topic = "topic")})
 public class TestHandler implements TdmqListener<String> {
 
     @Override
@@ -121,8 +121,7 @@ TdmqListener<T>,T可以是任意类型，除了集合类型外
 ## 多条消息接收
 ```
 @Component
-@TdmqHandler(topics = {@TdmqTopic(topic = "${eqxiu.scs.mns.topics.content-todo-12.topic}",
-        tags = "${eqxiu.scs.mns.topics.content-todo-12.tags}")})
+@TdmqHandler(topics = {@TdmqTopic(topic = "${eqxiu.scs.mns.topics.content-todo-12.topic}")})
 public class DemoHandler12 implements TdmqBatchListener<String> {
 
     @Override
@@ -139,8 +138,7 @@ tdmq.batch-threads=-1 # 实现TdmqBatchListener的数量，配置数量也可以
 ## 接收List消息
 ```
 @Component
-@TdmqHandler(topics = {@TdmqTopic(topic = "${eqxiu.scs.mns.topics.content-todo-11.topic}",
-        tags = "${eqxiu.scs.mns.topics.content-todo-11.tags}")})
+@TdmqHandler(topics = {@TdmqTopic(topic = "${eqxiu.scs.mns.topics.content-todo-11.topic}")})
 public class DemoHandler11 extends ListBaseBytesListener<String> {
     @Override
     protected void receive(Consumer<byte[]> consumer, Message<byte[]> message, List<String> data) throws MessageRedeliverException {
@@ -153,8 +151,7 @@ public class DemoHandler11 extends ListBaseBytesListener<String> {
 ## 接收bytes编码传输的对象消息
 ```
 @Component
-@TdmqHandler(topics = {@TdmqTopic(topic = "${eqxiu.scs.mns.topics.content-todo-11.topic}",
-        tags = "${eqxiu.scs.mns.topics.content-todo-11.tags}")})
+@TdmqHandler(topics = {@TdmqTopic(topic = "${eqxiu.scs.mns.topics.content-todo-11.topic}")})
 public class DemoHandler11 extends ObjectBaseBytesListener<String> {
 
     @Override
