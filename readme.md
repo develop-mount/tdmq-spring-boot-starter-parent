@@ -162,6 +162,21 @@ public class DemoHandler11 extends ObjectBaseBytesListener<String> {
 ```
 类继承ObjectBaseBytesListener，可以接收除集合以外的任意消息
 
+## 事件监听
+```
+@Component
+@TdmqHandler(topics = {
+        @TdmqTopic(topic = "${eqxiu.scs.mns.topics.content-todo-1.topic}")
+})
+public class DemoBusEventHandler implements EventBusListener<TestBusEvent> {
+
+    @Override
+    public void onEventListener(TestBusEvent message) throws MessageRedeliverException {
+        System.out.println(message.getSource());
+    }
+}     
+```
+     
 ## 发送消息
 ```
 // 发送字符串消息
